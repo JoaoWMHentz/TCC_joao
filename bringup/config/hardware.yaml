@@ -1,0 +1,32 @@
+# Parâmetros do hardware_node (pacote hardware) no robô físico.
+hardware_node:
+  ros__parameters:
+    motor_baudrate: 115200
+    imu_baudrate: 115200
+    imu_has_orientation: true
+
+    # Geometria — manter igual ao description/urdf/robot.urdf.xacro
+    wheel_radius: 0.0825
+    wheel_separation: 0.310
+
+    # Limites de velocidade
+    max_linear_speed: 0.5       # m/s
+    max_angular_speed: 1.5      # rad/s
+    # Velocidade mínima por roda: abaixo dela o BLDC com Hall vibra em vez de
+    # girar. 1.5 rad/s ≈ 0.12 m/s em linha reta.
+    min_wheel_speed: 1.5        # rad/s
+    wheel_deadband: 0.15        # rad/s
+
+    # Segurança
+    cmd_vel_timeout: 0.5        # s sem /cmd_vel -> para
+    serial_timeout: 1.0         # s sem dados do controlador -> recusa comandos
+
+    # Odometria
+    odom_rate: 25.0
+    publish_tf: true
+
+    # Convenção de sinais do firmware (ver hardware/protocol.py, WheelMapping)
+    invert_command: true
+    swap_command: true
+    invert_feedback: true
+    swap_feedback: false

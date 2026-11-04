@@ -1,0 +1,9 @@
+# RTAB-Map — modo MAPEAMENTO (constrói o mapa e grava no .db)
+rtabmap:
+  ros__parameters:
+    Mem/IncrementalMemory: "true"
+    Rtabmap/DetectionRate: "10.0"
+    RGBD/LinearUpdate: "0.05"     # m — cria nó a cada 5 cm percorridos
+    RGBD/AngularUpdate: "0.01"    # rad
+    Reg/Strategy: "1"             # 1 = ICP (LiDAR)
+    Icp/CorrespondenceRatio: "0.20"

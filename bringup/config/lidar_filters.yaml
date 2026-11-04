@@ -1,0 +1,17 @@
+# Filtro do LaserScan: /scan_raw -> /scan
+#
+# O LiDAR fica no centro do corpo do robô. Qualquer peça da própria estrutura
+# que cruze o plano de varredura gera um eco de alcance fixo, que o costmap
+# marcaria como obstáculo permanente colado ao robô. Raio do corpo = 0.245 m:
+# leituras abaixo de 0.22 m são descartadas.
+scan_filter_chain:
+  ros__parameters:
+    filter1:
+      name: footprint_range_filter
+      type: laser_filters/LaserScanRangeFilter
+      params:
+        use_message_range_limits: false
+        lower_threshold: 0.22
+        upper_threshold: .inf
+        lower_replacement_value: .inf
+        upper_replacement_value: .inf

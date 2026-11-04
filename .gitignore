@@ -1,0 +1,29 @@
+# ROS 2 / colcon
+build/
+install/
+log/
+__pycache__/
+*.pyc
+
+# Python
+.venv/
+.pytest_cache/
+
+# Web
+web/frontend/node_modules/
+web/frontend/dist/
+
+# Configuração local
+.env
+
+# Dados gerados
+*.db
+*.db3
+*.mcap
+*.csv
+
+# Editores / sistema
+.vscode/
+.idea/
+*.swp
+.DS_Store

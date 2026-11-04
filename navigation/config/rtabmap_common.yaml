@@ -1,0 +1,66 @@
+# RTAB-Map — parâmetros comuns ao mapeamento e à localização.
+#
+# Fusão de sensores:
+#   - LiDAR 2D (/scan): registro por ICP e construção do grid 2D usado pelo Nav2;
+#   - câmera RGB-D: detecção de fechamento de loop por aparência (bag-of-words);
+#   - IMU: restrição de gravidade no grafo;
+#   - odometria das rodas (/odom): estimativa entre as correções.
+# Correção de deriva: o RTAB-Map publica o TF map->odom.
+rtabmap:
+  ros__parameters:
+    frame_id: base_link
+    odom_frame_id: odom
+    map_frame_id: map
+    publish_tf: true
+    tf_delay: 0.05
+    wait_for_transform: 0.5
+
+    subscribe_scan: true
+    subscribe_rgb: true
+    subscribe_depth: true
+    approx_sync: true
+    approx_sync_max_interval: 0.2
+    sync_queue_size: 30
+    tf_tolerance: 0.1
+
+    Mem/InitWMWithAllNodes: "true"
+    Mem/NotLinkedNodesKept: "false"   # só grava no .db os nós do grafo
+
+    # Features visuais (fechamento de loop): GFTT + ORB
+    Kp/DetectorStrategy: "8"
+    Kp/MaxFeatures: "1000"
+    Vis/EstimationType: "1"
+    Vis/MinInliers: "15"
+    Vis/InlierDistance: "0.1"
+
+    # Grafo e proximidade
+    Rtabmap/TimeThr: "0.0"
+    Rtabmap/MemoryThr: "0"
+    RGBD/OptimizeFromGraphEnd: "false"
+    RGBD/NeighborLinkRefining: "true"
+    RGBD/LocalRadius: "12.0"
+    RGBD/ProximityBySpace: "true"
+    RGBD/ProximityByTime: "false"
+    RGBD/ProximityMaxGraphDepth: "0"
+    RGBD/ProximityPathMaxNeighbors: "15"
+    RGBD/ProximityOdomGuess: "true"
+    RGBD/OptimizeMaxError: "3.0"
+
+    # ICP (LiDAR 2D)
+    Reg/Force3DoF: "true"
+    Icp/VoxelSize: "0.05"
+    Icp/MaxCorrespondenceDistance: "1.0"
+    Icp/Iterations: "100"
+    Icp/Epsilon: "0.0001"
+    Icp/PointToPlane: "false"
+    Icp/MaxTranslation: "1.5"
+    Icp/MaxRotation: "1.57"
+
+    # Grid 2D para o Nav2: construído só pelo LiDAR
+    Grid/Sensor: "0"
+    Grid/3D: "false"
+    Grid/CellSize: "0.05"
+    Grid/RangeMin: "0.25"
+    Grid/RangeMax: "12.0"
+    Grid/RayTracing: "true"
+    Grid/MaxObstacleHeight: "1.80"

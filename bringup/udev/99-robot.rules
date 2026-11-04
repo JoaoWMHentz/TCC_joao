@@ -1,0 +1,15 @@
+# Nomes fixos para as portas seriais do robô.
+#
+# Descubra vendor/product/serial de cada dispositivo com:
+#   udevadm info -a -n /dev/ttyUSB0 | grep -E 'idVendor|idProduct|serial' | head
+# Instale com:
+#   sudo cp 99-robot.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger
+
+# RPLidar (ponte CP210x)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="SERIAL_DO_LIDAR", SYMLINK+="ttyLIDAR", MODE="0666"
+
+# Controlador dos motores (ESP32, via conversor USB-serial FTDI na Serial2)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="SERIAL_DO_FTDI", SYMLINK+="ttyMOTOR", MODE="0666"
+
+# IMU (STM32F401, USB CDC do STM32duino)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", SYMLINK+="ttyIMU", MODE="0666"

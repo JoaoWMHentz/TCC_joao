@@ -1,0 +1,17 @@
+# Banco de dados da interface web (destinos, rotas e histórico de navegação).
+# Porta 5433 no host para não conflitar com outro PostgreSQL local.
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tcc
+      POSTGRES_PASSWORD: tcc
+      POSTGRES_DB: tcc
+    ports:
+      - "5433:5432"
+    volumes:
+      - tcc_pgdata:/var/lib/postgresql/data
+
+volumes:
+  tcc_pgdata:
