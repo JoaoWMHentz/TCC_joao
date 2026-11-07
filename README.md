@@ -67,7 +67,18 @@ fluxo de dados em [docs/arquitetura.md](docs/arquitetura.md).
 
 ## Instalação
 
-Ubuntu 24.04 com ROS 2 Jazzy ([guia oficial](https://docs.ros.org/en/jazzy/Installation.html)).
+Ubuntu 24.04. O script `install.sh` instala tudo (ROS 2 Jazzy, RTAB-Map, Nav2,
+Gazebo, Docker, Node.js 22, venv do backend) e compila o workspace:
+
+```bash
+mkdir -p ~/ros2_ws/src && cd ~/ros2_ws/src
+git clone <este repositório> TCC_joao && cd TCC_joao
+./install.sh            # simulação / desenvolvimento
+./install.sh --robot    # robô físico: + drivers do RPLidar e da Astra e regras udev
+```
+
+Instalação manual, equivalente
+([guia oficial do ROS 2](https://docs.ros.org/en/jazzy/Installation.html)):
 
 ```bash
 sudo apt install \
