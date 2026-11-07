@@ -27,3 +27,5 @@ web/frontend/dist/
 .idea/
 *.swp
 .DS_Store
+.coverage
+htmlcov/

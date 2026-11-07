@@ -30,7 +30,7 @@ class SerialLink:
         self._reopen_period = reopen_period_s
 
         self._ser: serial.Serial | None = None
-        self._write_lock = threading.Lock()
+        self._write_lock = threading.RLock()  # write_line chama _close() com o lock na mão
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._last_rx = None  # time.monotonic() da última linha recebida

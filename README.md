@@ -39,8 +39,13 @@ Licença: [Apache-2.0](LICENSE).
 ```
 
 Os dois "fundos" (real e simulado) publicam **os mesmos tópicos**, então o
-RTAB-Map, o Nav2 e a interface não sabem em qual estão rodando. Diagramas de
-fluxo de dados em [docs/arquitetura.md](docs/arquitetura.md).
+RTAB-Map, o Nav2 e a interface não sabem em qual estão rodando.
+
+Documentação (também publicada na Wiki com `scripts/publish_wiki.sh`):
+
+- [docs/arquitetura.md](docs/arquitetura.md): fluxo de dados, TF, RTAB-Map, Nav2, interface e protocolo serial;
+- [docs/diagramas.md](docs/diagramas.md): requisitos (SysML), camadas IoT, C4, blocos (BDD/IBD), malhas de controle, máquinas de estado e segurança;
+- [docs/conformidade-portfolio.md](docs/conformidade-portfolio.md): requisitos do Portfólio e justificativas.
 
 | Pacote / pasta | Conteúdo |
 |---|---|
@@ -191,6 +196,6 @@ ros2 run hardware hardware_node --ros-args -p motor_port:=<MOTOR> -p imu_port:=<
 ## Testes
 
 ```bash
-python3 -m pytest tests                       # protocolo, cinemática e odometria
+tests/run_tests.sh                            # testes + cobertura (carrega o ROS 2 sozinho)
 cd web/frontend && npm run typecheck          # tipos do frontend
 ```
