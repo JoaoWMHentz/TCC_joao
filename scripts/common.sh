@@ -73,7 +73,15 @@ build_workspace() {
 
 # docker compose (v2) ou docker-compose (v1), o que estiver instalado
 compose() {
-    if docker compose version >/dev/null 2>&1; then docker compose "$@"; else docker-compose "$@"; fi
+    local cmd
+    if docker compose version >/dev/null 2>&1; then cmd="docker compose"; else cmd="docker-compose"; fi
+    # Usuário recém-adicionado ao grupo docker (install.sh) ainda sem novo login:
+    # a sessão atual não tem o grupo, então roda o comando via "sg docker".
+    if ! docker info >/dev/null 2>&1 && getent group docker | grep -qw "$USER"; then
+        sg docker -c "$cmd $(printf '%q ' "$@")"
+    else
+        $cmd "$@"
+    fi
 }
 
 prepare_web() {
