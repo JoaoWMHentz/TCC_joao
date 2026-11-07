@@ -90,12 +90,28 @@ prepare_web() {
         python3 -m venv --system-site-packages "$VENV"
         "$VENV/bin/pip" install -q -r "$WEB_DIR/backend/requirements.txt" || exit 1
     fi
-    if [ ! -f "$WEB_DIR/frontend/dist/index.html" ]; then
-        echo "[start] compilando a interface web..."
-        (cd "$WEB_DIR/frontend" && npm ci && npm run build) || exit 1
-    fi
+    build_frontend
     echo "[start] subindo o PostgreSQL (docker compose)..."
     (cd "$WEB_DIR" && compose up -d) || exit 1
+}
+
+# Recompila a interface quando o dist/ não existe ou está mais velho que
+# qualquer fonte (src/, index.html, configs). O dist/ fica fora do git, então
+# um commit/pull no frontend só aparece no navegador depois de recompilar.
+build_frontend() {
+    local fe="$WEB_DIR/frontend" stamp="$WEB_DIR/frontend/dist/index.html"
+    if [ ! -d "$fe/node_modules" ] || [ "$fe/package-lock.json" -nt "$fe/node_modules" ]; then
+        echo "[start] instalando dependências da interface web (npm ci)..."
+        (cd "$fe" && npm ci) || exit 1
+        touch "$fe/node_modules"
+    fi
+    if [ ! -f "$stamp" ] || [ -n "$(find "$fe/src" "$fe/index.html" "$fe/vite.config.ts" \
+            "$fe/tsconfig.json" "$fe/package.json" -newer "$stamp" -print -quit)" ]; then
+        echo "[start] compilando a interface web..."
+        (cd "$fe" && npm run build) || exit 1
+    else
+        echo "[start] interface web já está atualizada"
+    fi
 }
 
 start_backend() {

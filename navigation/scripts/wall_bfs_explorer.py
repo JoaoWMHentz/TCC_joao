@@ -6,8 +6,9 @@ Estratégia:
   SEGUIR PAREDE  o robô anda mantendo a parede de um lado (regra da mão
                  direita/esquerda), comandando /cmd_vel direto a partir do
                  /scan. Contorna o ambiente revelando o mapa pelo caminho.
-  BFS            quando seguir a parede deixa de render — fechou a volta
-                 (voltou perto de onde começou), o mapa parou de crescer,
+  BFS            quando seguir a parede deixa de render — voltou a passar,
+                 no mesmo sentido, por um lugar já percorrido (o caminho
+                 fica registrado), o mapa parou de crescer,
                  o robô travou ou estourou o tempo do trecho — uma busca em
                  largura no /map acha a fronteira alcançável mais próxima
                  pelo caminho (ver wall_bfs.py) e o Nav2 leva o robô até lá.
@@ -43,7 +44,7 @@ from rclpy.qos import (QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy,
                        qos_profile_sensor_data)
 from rclpy.signals import SignalHandlerOptions
 from sensor_msgs.msg import LaserScan
-from wall_bfs import (WallParams, bfs_to_frontier, free_disk, frontier_targets,
+from wall_bfs import (PathMemory, WallParams, bfs_to_frontier, free_disk, frontier_targets,
                       scan_view, traversable_mask, wall_follow_command)
 
 MAP_QOS = QoSProfile(depth=1, reliability=QoSReliabilityPolicy.RELIABLE,
@@ -58,8 +59,10 @@ def yaw_of(q):
 
 class WallBfsExplorer(Node):
 
-    def __init__(self):
-        super().__init__('wall_bfs_explorer')
+    DESCRIPTION = 'seguir parede + BFS'
+
+    def __init__(self, node_name: str = 'wall_bfs_explorer'):
+        super().__init__(node_name)
         p = lambda name, default: self.declare_parameter(name, default).value  # noqa: E731
         self.global_frame = p('global_frame', 'map')
         self.base_frame = p('robot_base_frame', 'base_link')
@@ -81,6 +84,8 @@ class WallBfsExplorer(Node):
         self.min_frontier_size = p('min_frontier_size', 0.3)      # m
         self.loop_min_travel = p('loop_min_travel', 4.0)          # m
         self.loop_close_radius = p('loop_close_radius', 0.6)      # m
+        self.revisit_travel = p('revisit_travel', 1.0)            # m sobre o já percorrido
+        self.revisit_heading = math.radians(p('revisit_heading', 60.0))
         self.stagnation_time = p('stagnation_time', 25.0)         # s
         self.stagnation_gain = p('stagnation_gain', 0.5)          # m² de mapa novo
         self.wall_max_time = p('wall_max_time', 180.0)            # s
@@ -91,6 +96,7 @@ class WallBfsExplorer(Node):
         self.empty_rounds_to_finish = p('empty_rounds_to_finish', 3)
         self.return_to_start = p('return_to_start', True)
         rate = p('control_rate', 10.0)                            # Hz
+        self.path = PathMemory(p('record_spacing', 0.05))         # caminho percorrido
 
         self.create_subscription(OccupancyGrid, p('map_topic', '/map'), self._on_map, MAP_QOS)
         self.create_subscription(LaserScan, p('scan_topic', '/scan'), self._on_scan,
@@ -110,7 +116,6 @@ class WallBfsExplorer(Node):
         self.goals_reached = 0
         self.started_at = time.monotonic()
         # trecho atual de seguir parede
-        self.seg_start = None
         self.seg_started_at = 0.0
         self.seg_travel = 0.0
         self.last_pose = None
@@ -119,6 +124,8 @@ class WallBfsExplorer(Node):
         self.known_checked_at = 0.0
         self.moved_at = (0.0, 0.0, 0.0)        # x, y, instante do último deslocamento
         self.wall_state = ''
+        self.revisit_from = None               # (distância, índice) ao entrar no já percorrido
+        self.loop_hit = None                   # índice do ponto revisitado que encerrou o trecho
         # destino do Nav2
         self.goal = None
         self.goal_handle = None
@@ -126,7 +133,7 @@ class WallBfsExplorer(Node):
         self.sending = False
 
         self.create_timer(1.0 / rate, self._tick)
-        self.get_logger().info('Exploração (seguir parede + BFS) iniciada; '
+        self.get_logger().info(f'Exploração ({self.DESCRIPTION}) iniciada; '
                                'aguardando mapa, scan e Nav2...')
 
     # ── Entradas ─────────────────────────────────────────────────────────────
@@ -153,6 +160,10 @@ class WallBfsExplorer(Node):
         t = tf.transform.translation
         return t.x, t.y, yaw_of(tf.transform.rotation)
 
+    def _record(self, pose):
+        """Registra a pose no caminho percorrido; True se entrou um ponto novo."""
+        return self.path.add(*pose)
+
     def _known_area(self):
         m = self.map
         known = np.count_nonzero(np.asarray(m.data, dtype=np.int16) >= 0)
@@ -165,6 +176,8 @@ class WallBfsExplorer(Node):
             return
         pose = self._robot_pose()
         now = time.monotonic()
+        if pose is not None:
+            self._record(pose)
         if self.state == WAIT:
             if (self.map is None or self.scan is None or self.scan_yaw is None
                     or pose is None or not self.nav.server_is_ready()):
@@ -186,7 +199,6 @@ class WallBfsExplorer(Node):
 
     def _start_wall(self, pose, now):
         self.state = WALL
-        self.seg_start = pose[:2]
         self.seg_started_at = now
         self.seg_travel = 0.0
         self.last_pose = pose
@@ -195,6 +207,8 @@ class WallBfsExplorer(Node):
         self.known_checked_at = now
         self.moved_at = (pose[0], pose[1], now)
         self.wall_state = ''
+        self.revisit_from = None
+        self.loop_hit = None
         self.get_logger().info(f'Seguindo a parede ({self.wall.side})')
 
     def _wall_step(self, pose, now):
@@ -205,11 +219,10 @@ class WallBfsExplorer(Node):
         if math.hypot(x - mx, y - my) > 0.1:
             self.moved_at = (x, y, now)
 
-        why = self._wall_exhausted(x, y, now, mt)
+        why = self._wall_exhausted(pose, now, mt)
         if why:
             self._stop_robot()
-            self.get_logger().info(f'Parede: {why}; buscando fronteira (BFS)')
-            self._go_bfs(pose)
+            self._after_wall(pose, why)
             return
 
         sc = self.scan
@@ -226,12 +239,31 @@ class WallBfsExplorer(Node):
         cmd.linear.x, cmd.angular.z = float(v), float(w)
         self.cmd_pub.publish(cmd)
 
-    def _wall_exhausted(self, x, y, now, moved_at):
+    def _revisiting(self, pose):
+        """Motivo se o robô está há `revisit_travel` m andando, no mesmo
+        sentido, sobre caminho já percorrido (deste trecho, a mais de
+        `loop_min_travel` m para trás, ou de qualquer trecho anterior) — ou None.
+        Guarda em loop_hit o índice do primeiro ponto revisitado."""
+        hit = self.path.revisit(*pose, self.loop_close_radius, self.loop_min_travel,
+                                self.revisit_heading)
+        if hit is None:
+            self.revisit_from = None
+            return None
+        if self.revisit_from is None:
+            self.revisit_from = (self.path.length, hit)
+        start, first = self.revisit_from
+        if self.path.length - start < self.revisit_travel:
+            return None
+        self.loop_hit = first
+        px, py = self.path.xy[first]
+        return (f'voltou a caminho já percorrido em ({px:.1f}, {py:.1f}) '
+                f'após {self.seg_travel:.1f} m de parede')
+
+    def _wall_exhausted(self, pose, now, moved_at):
         """Motivo para largar a parede e chamar a BFS, ou None."""
-        sx, sy = self.seg_start
-        if (self.seg_travel > self.loop_min_travel
-                and math.hypot(x - sx, y - sy) < self.loop_close_radius):
-            return f'volta fechada ({self.seg_travel:.1f} m)'
+        why = self._revisiting(pose)
+        if why:
+            return why
         if now - moved_at > self.stuck_time:
             return f'robô parado há {self.stuck_time:.0f} s'
         if now - self.seg_started_at > self.wall_max_time:
@@ -242,6 +274,11 @@ class WallBfsExplorer(Node):
             if gain < self.stagnation_gain:
                 return f'mapa não cresceu em {self.stagnation_time:.0f} s'
         return None
+
+    def _after_wall(self, pose, why):
+        """Trecho de parede encerrado (why = motivo). Aqui: vai para a BFS."""
+        self.get_logger().info(f'Parede: {why}; buscando fronteira (BFS)')
+        self._go_bfs(pose)
 
     # ── BFS ──────────────────────────────────────────────────────────────────
 
@@ -365,7 +402,7 @@ class WallBfsExplorer(Node):
             self.goal = None
             pose = self._robot_pose()
             if pose is not None:
-                self._start_wall(pose, time.monotonic())
+                self._after_frontier(pose)
             else:
                 self.state = WAIT
         elif status == GoalStatus.STATUS_CANCELED:
@@ -374,6 +411,10 @@ class WallBfsExplorer(Node):
             self._done()
         else:
             self._goal_failed('o Nav2 não conseguiu chegar')
+
+    def _after_frontier(self, pose):
+        """Chegou à fronteira da BFS. Aqui: volta a seguir parede."""
+        self._start_wall(pose, time.monotonic())
 
     # ── Fim ──────────────────────────────────────────────────────────────────
 

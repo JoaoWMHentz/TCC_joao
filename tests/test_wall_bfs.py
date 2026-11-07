@@ -9,7 +9,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'navigation', 'scripts'))
 
 from wall_bfs import (  # noqa: E402
-    ScanView, WallParams, bfs_to_frontier, free_disk, frontier_targets, scan_view,
+    PathMemory, ScanView, WallParams, bfs_to_frontier, free_disk, frontier_targets, scan_view,
     traversable_mask, wall_follow_command)
 
 U, F, O = -1, 0, 100   # desconhecido, livre, ocupado
@@ -161,3 +161,62 @@ def test_desacelera_com_obstaculo_se_aproximando_a_frente():
     v_seek, _, st = wall_follow_command(ScanView(front=1.0, side=5.0, side_front=5.0,
                                                  other_side=5.0), P, False)
     assert st == 'seek' and P.min_linear_speed <= v_seek < P.linear_speed
+
+
+# ── Caminho percorrido ───────────────────────────────────────────────────────
+
+def _volta_quadrada(mem, lado=4.0, passo=0.05):
+    """Percorre um quadrado anti-horário a partir de (0, 0)."""
+    for k, (dx, dy) in enumerate([(1, 0), (0, 1), (-1, 0), (0, -1)]):
+        x0 = [0, lado, lado, 0][k]
+        y0 = [0, 0, lado, lado][k]
+        yaw = math.atan2(dy, dx)
+        for i in range(int(lado / passo)):
+            mem.add(x0 + dx * i * passo, y0 + dy * i * passo, yaw)
+
+
+def test_memoria_registra_com_espacamento_e_acumula_distancia():
+    mem = PathMemory(spacing=0.1)
+    assert mem.add(0, 0, 0) and not mem.add(0.05, 0, 0) and mem.add(0.1, 0, 0)
+    mem.add(1.0, 0, 0)
+    assert len(mem) == 3 and math.isclose(mem.length, 1.0)
+
+
+def test_memoria_cresce_alem_da_capacidade_inicial():
+    mem = PathMemory(spacing=0.005)
+    for i in range(1000):
+        mem.add(i * 0.01, 0, 0)
+    assert len(mem) == 1000 and math.isclose(mem.length, 9.99, abs_tol=1e-6)
+
+
+def test_volta_fechada_em_qualquer_ponto_do_caminho_nao_so_no_inicio():
+    mem = PathMemory()
+    # entra pela lateral: o início (-2, 2) nunca é revisitado
+    for i in range(40):
+        mem.add(-2 + i * 0.05, 2, 0)
+    _volta_quadrada(mem)
+    # de volta ao primeiro lado do quadrado, no mesmo sentido
+    hit = mem.revisit(1.0, 0.1, 0.0, radius=0.6, min_gap=4.0)
+    assert hit is not None
+    assert math.dist(mem.xy[hit], (1.0, 0.1)) < 0.6
+
+
+def test_trecho_recente_nao_conta_como_revisita():
+    mem = PathMemory()
+    for i in range(60):
+        mem.add(i * 0.05, 0, 0)
+    assert mem.revisit(3.0, 0, 0, radius=0.6, min_gap=4.0) is None
+
+
+def test_sentido_contrario_nao_e_revisita():
+    mem = PathMemory()
+    _volta_quadrada(mem)
+    # outro lado de um corredor: mesmo lugar, sentido oposto
+    assert mem.revisit(1.0, 0.1, math.pi, radius=0.6, min_gap=4.0) is None
+    assert mem.revisit(1.0, 0.1, 0.2, radius=0.6, min_gap=4.0) is not None
+
+
+def test_longe_do_caminho_nao_e_revisita():
+    mem = PathMemory()
+    _volta_quadrada(mem)
+    assert mem.revisit(2.0, 2.0, 0.0, radius=0.6, min_gap=4.0) is None

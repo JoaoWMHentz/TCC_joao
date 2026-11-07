@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
-import type { SavedMap, Status } from '../types';
+import type { ExploreStrategy, SavedMap, Status } from '../types';
 
 interface Props {
   status: Status | null;
@@ -15,11 +15,66 @@ const MODE_TEXT: Record<string, string> = {
   stopping: 'Parando (salvando o mapa)...',
 };
 
+// Estratégias de exploração autônoma (argumento strategy do explore.launch.py)
+const STRATEGIES: { id: ExploreStrategy; label: string; hint: string }[] = [
+  {
+    id: 'wall_bfs',
+    label: 'Seguir parede + BFS',
+    hint: 'Segue as paredes e, quando param de revelar mapa, vai à fronteira mais próxima pelo caminho (BFS).',
+  },
+  {
+    id: 'pocket',
+    label: 'Desbaste (contorno + offsets)',
+    hint:
+      'Como o desbaste de uma CNC: identifica no mapa um canto da parede externa (ignorando as prateleiras), ' +
+      'contorna as paredes externas até voltar a ele e depois faz passes em offset do caminho já percorrido, ' +
+      'nível a nível, até o centro.',
+  },
+  {
+    id: 'frontier',
+    label: 'Fronteiras (Nav2)',
+    hint: 'Escolhe a fronteira com melhor nota distância × tamanho e vai até ela pelo Nav2, até não sobrar nenhuma.',
+  },
+];
+const STRATEGY_KEY = 'explore-strategy';
+
+function savedStrategy(): ExploreStrategy {
+  try {
+    const v = localStorage.getItem(STRATEGY_KEY);
+    if (STRATEGIES.some((s) => s.id === v)) return v as ExploreStrategy;
+  } catch {
+    /* sem localStorage: usa o padrão */
+  }
+  return 'wall_bfs';
+}
+
 // Iniciar um mapeamento novo, abrir um mapa salvo ou parar a sessão.
 export default function SessionPanel({ status, notify }: Props) {
   const [maps, setMaps] = useState<SavedMap[]>([]);
   const [newName, setNewName] = useState('');
   const [selected, setSelected] = useState('');
+  const [strategy, setStrategyState] = useState<ExploreStrategy>(savedStrategy);
+  const setStrategy = (s: ExploreStrategy) => {
+    setStrategyState(s);
+    try {
+      localStorage.setItem(STRATEGY_KEY, s);
+    } catch {
+      /* ignora */
+    }
+  };
+  const strategyInfo = STRATEGIES.find((s) => s.id === strategy)!;
+  const strategySelect = (
+    <label className="field">
+      <span>Estratégia de exploração</span>
+      <select value={strategy} onChange={(e) => setStrategy(e.target.value as ExploreStrategy)}>
+        {STRATEGIES.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
   const mode = status?.mode ?? 'idle';
   const busy = mode !== 'idle';
 
@@ -37,12 +92,12 @@ export default function SessionPanel({ status, notify }: Props) {
 
   const start = async (kind: 'mapping' | 'navigation', name: string, explore = false) => {
     try {
-      await api(`/session/${kind}`, { name, explore });
+      await api(`/session/${kind}`, { name, explore, strategy });
       notify(
         kind === 'navigation'
           ? `Mapa "${name}" aberto`
           : explore
-            ? `Mapeamento "${name}" iniciado; a exploração autônoma começa quando o robô estiver pronto`
+            ? `Mapeamento "${name}" iniciado; a exploração (${strategyInfo.label}) começa quando o robô estiver pronto`
             : `Mapeamento "${name}" iniciado`,
       );
       setNewName('');
@@ -65,8 +120,8 @@ export default function SessionPanel({ status, notify }: Props) {
   const exploring = status?.explore?.running ?? false;
   const toggleExplore = async () => {
     try {
-      await api(`/explore/${exploring ? 'stop' : 'start'}`, {});
-      notify(exploring ? 'Exploração autônoma parada' : 'Exploração autônoma iniciada');
+      await api(`/explore/${exploring ? 'stop' : 'start'}`, exploring ? {} : { strategy });
+      notify(exploring ? 'Exploração autônoma parada' : `Exploração autônoma iniciada (${strategyInfo.label})`);
     } catch (e) {
       notify((e as Error).message, true);
     }
@@ -94,14 +149,20 @@ export default function SessionPanel({ status, notify }: Props) {
         <>
           {mode === 'mapping' && (
             <>
+              {exploring ? (
+                <p className="hint">
+                  Estratégia: <strong>{STRATEGIES.find((s) => s.id === status?.explore?.strategy)?.label ?? '—'}</strong>
+                </p>
+              ) : (
+                strategySelect
+              )}
               <button className={`wide ${exploring ? '' : 'primary'}`} onClick={toggleExplore}>
                 {exploring ? 'Parar exploração autônoma' : 'Iniciar exploração autônoma'}
               </button>
               {status?.explore?.message && <p className="hint">{status.explore.message}</p>}
               {!exploring && (
                 <p className="hint">
-                  O robô segue as paredes e vai sozinho até o que ainda não foi mapeado, até cobrir o ambiente. Qualquer
-                  comando manual (destino, setas) interrompe a exploração.
+                  {strategyInfo.hint} Qualquer comando manual (destino, setas) interrompe a exploração.
                 </p>
               )}
             </>
@@ -145,12 +206,13 @@ export default function SessionPanel({ status, notify }: Props) {
               </button>
             </div>
           </label>
+          {strategySelect}
           <button className="primary wide" disabled={!newName.trim()} onClick={() => start('mapping', newName.trim(), true)}>
             Mapear com exploração autônoma
           </button>
           <p className="hint">
             No mapeamento, conduza o robô pelo ambiente (clicando no mapa ou com as setas) ou use a exploração
-            autônoma: ele segue as paredes e vai sozinho até o que ainda não foi mapeado. Ao concluir, o mapa é salvo.
+            autônoma. {strategyInfo.hint} Ao concluir, o mapa é salvo.
           </p>
         </>
       )}

@@ -1,4 +1,7 @@
-# Exploração automática por fronteiras (scripts/frontier_explorer.py).
+# Exploração automática — três estratégias, escolhidas pelo argumento
+# strategy do explore.launch.py (ou na interface web): wall_bfs, pocket, frontier.
+#
+# Exploração por fronteiras (scripts/frontier_explorer.py).
 # Só faz sentido durante o mapeamento (RTAB-Map em mode:=mapping + Nav2 com
 # allow_unknown:=true, que é o que a interface web sobe em "Mapear").
 frontier_explorer:
@@ -51,8 +54,13 @@ wall_bfs_explorer:
     control_rate: 10.0            # Hz
 
     # ── Quando largar a parede e chamar a BFS ──
-    loop_min_travel: 4.0          # m — andou isso e voltou perto do início do trecho...
-    loop_close_radius: 0.6        # m — ...a menos disso: volta fechada
+    # O caminho percorrido fica registrado. Passar de novo, no mesmo sentido,
+    # por onde já passou (volta fechada ou parede já seguida) larga a parede.
+    loop_min_travel: 4.0          # m — só conta caminho do trecho atual a mais disso para trás
+    loop_close_radius: 0.6        # m — a menos disso de um ponto já percorrido: revisitando
+    revisit_travel: 1.0           # m — andando isso sobre o já percorrido: larga a parede
+    revisit_heading: 60.0         # graus — diferença máxima de sentido (contrário = outro lado)
+    record_spacing: 0.05          # m — resolução do registro do caminho
     stagnation_time: 25.0         # s — janela para medir o crescimento do mapa
     stagnation_gain: 0.5          # m² — cresceu menos que isso na janela: largar
     wall_max_time: 180.0          # s — tempo máximo de um trecho
@@ -65,4 +73,69 @@ wall_bfs_explorer:
     progress_timeout: 30.0        # s — indo à fronteira sem avançar: descarta
     goal_timeout: 180.0           # s
     empty_rounds_to_finish: 3     # BFS sem fronteira tantas vezes seguidas: fim
+    return_to_start: true
+
+# Desbaste, como o pocketing de uma CNC (scripts/pocket_explorer.py):
+# nível 0 contorna a parede externa; cada nível seguinte é um passe em offset
+# de TUDO o que o robô já percorreu, até chegar ao centro. strategy:=pocket.
+# O pocket_explorer herda do wall_bfs_explorer: os parâmetros do seguidor de
+# parede e da BFS são os mesmos (repetidos aqui porque o nó tem outro nome).
+pocket_explorer:
+  ros__parameters:
+    global_frame: map
+    robot_base_frame: base_link
+    map_topic: /map
+    scan_topic: /scan
+    cmd_vel_topic: /cmd_vel
+
+    # ── Borda externa identificada no /map (visão computacional) ──
+    # Preenche os buracos do espaço livre (prateleiras somem), simplifica o
+    # contorno externo em polígono e usa os cantos convexos com parede atrás
+    # dos dois lados e sobre o fecho convexo. O robô vai ao mais próximo.
+    corner_min_wall_length: 1.5   # m — cada parede do canto precisa ter isso
+    corner_approx_eps: 0.25       # m — tolerância da simplificação (Douglas-Peucker)
+    corner_hull_tolerance: 0.6    # m — distância máxima do canto ao fecho convexo
+    corner_wall_backing: 0.7      # fração de cada aresta com parede ocupada atrás
+    corner_search_attempts: 4     # sem canto: vai a uma fronteira e tenta de novo
+    corner_skip_radius: 1.5       # m — canto que falhou não é tentado de novo
+
+    # ── Nível 0: contorno da parede externa (a partir do canto) ──
+    wall_side: right              # right | left — a parede externa fica deste lado
+    wall_distance: 0.70
+    front_clearance: 0.75
+    wall_lost_distance: 1.40
+    corner_time: 4.0
+    linear_speed: 0.8
+    slow_zone: 1.0
+    min_linear_speed: 0.12
+    max_angular_speed: 0.8
+    corner_turn_rate: 0.6
+    kp: 1.5
+    ka: 1.0
+    control_rate: 10.0
+    loop_min_travel: 4.0          # m — volta fechada: passou de novo, no mesmo sentido,
+    loop_close_radius: 0.6        # m   a menos disso de caminho já percorrido...
+    revisit_travel: 1.0           # m   ...e andou isso sobre ele
+    revisit_heading: 60.0         # graus
+    wall_max_time: 600.0          # s — tempo máximo do contorno
+    stuck_time: 10.0              # s
+    contour_attempts: 2           # voltas em torno de ilha (gôndola) antes de aceitar
+    # (no desbaste o contorno só termina ao fechar a volta, travar ou estourar o tempo)
+
+    # ── Níveis 1..N: passes em offset do caminho percorrido ──
+    level_spacing: 1.5            # m — stepover: distância entre um passe e o já percorrido
+    pass_clearance: 0.6           # m — folga mínima de obstáculos e do desconhecido
+    waypoint_spacing: 1.0         # m — pontos do passe enviados ao Nav2
+    min_pass_length: 2.0          # m — contornos menores são ignorados
+    min_region_area: 1.0          # m² — sobras menores não viram passe
+    blocked_radius: 0.8           # m — em volta de ponto do passe que o Nav2 não alcançou
+    max_pass_failures: 6          # passes seguidos falhando: vai para o acabamento
+    record_spacing: 0.05          # m — resolução do registro do caminho percorrido
+
+    # ── Acabamento (BFS nas fronteiras que sobraram) e Nav2 ──
+    robot_radius: 0.33
+    min_frontier_size: 0.3
+    blacklist_radius: 0.6
+    progress_timeout: 30.0
+    goal_timeout: 180.0
     return_to_start: true

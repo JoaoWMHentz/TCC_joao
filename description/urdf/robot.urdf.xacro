@@ -117,6 +117,27 @@
   <xacro:wheel side="left"  y="${wheel_separation/2}"  visual_roll="${3*pi/2}" />
   <xacro:wheel side="right" y="${-wheel_separation/2}" visual_roll="${pi/2}" />
 
+  <!-- ── Totem de atendimento (sobre a plataforma) ────────────────── -->
+  <!-- Malha em mm, Z para cima, base em z=0 e eixo central em
+       (x=-100, y=550) mm no frame do CAD: escala e recentra aqui. -->
+  <xacro:property name="chassis_top_z" value="0.131" />
+  <material name="totem_white"><color rgba="0.90 0.90 0.92 1" /></material>
+
+  <joint name="totem_joint" type="fixed">
+    <origin xyz="0 0 ${chassis_top_z}" rpy="0 0 0" />
+    <parent link="chassis_link" />
+    <child  link="totem_link" />
+  </joint>
+  <link name="totem_link">
+    <visual>
+      <origin xyz="0.100 -0.550 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://description/meshes/totem.STL" scale="0.001 0.001 0.001" />
+      </geometry>
+      <material name="totem_white" />
+    </visual>
+  </link>
+
   <!-- ── IMU ───────────────────────────────────────────────────────── -->
   <joint name="imu_joint" type="fixed">
     <origin xyz="${imu_x} ${imu_y} ${imu_z}" />

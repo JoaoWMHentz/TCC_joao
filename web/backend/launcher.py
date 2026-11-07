@@ -31,6 +31,9 @@ log = logging.getLogger('launcher')
 
 MAP_NAME_RE = re.compile(r'^[A-Za-z0-9_-]{1,40}$')
 STOP_GRACE_S = {'slam': 60.0, 'explore': 5.0}
+# Estratégias de exploração (argumento strategy do explore.launch.py)
+EXPLORE_STRATEGIES = ('wall_bfs', 'pocket', 'frontier')
+DEFAULT_STRATEGY = 'wall_bfs'
 DEFAULT_STOP_GRACE_S = 10.0
 # O Nav2 pode subir com os processos vivos mas os nós inativos (o
 # bt_navigator então recusa todo destino). Isso aparece no log como:
@@ -39,7 +42,7 @@ NAV_MAX_RESTARTS = 2
 START_DELAY_S = 5.0  # espera a base publicar odom/TF antes do RTAB-Map
 
 
-def _commands(mode: str, db_path: str) -> dict[str, str]:
+def _commands(mode: str, db_path: str, strategy: str = DEFAULT_STRATEGY) -> dict[str, str]:
     sim = 'true' if config.SIM else 'false'
     camera = 'true' if config.USE_CAMERA else 'false'
     if config.SIM:
@@ -54,7 +57,8 @@ def _commands(mode: str, db_path: str) -> dict[str, str]:
                  f'db_path:={db_path} use_camera:={camera} use_sim_time:={sim}'),
         'nav': (f'ros2 launch navigation nav2.launch.py '
                 f'use_sim_time:={sim} allow_unknown:={allow_unknown}'),
-        'explore': f'ros2 launch navigation explore.launch.py use_sim_time:={sim}',
+        'explore': (f'ros2 launch navigation explore.launch.py '
+                    f'use_sim_time:={sim} strategy:={strategy}'),
     }
 
 
@@ -74,6 +78,7 @@ class Launcher:
         self.mode = 'idle'        # idle | starting | mapping | navigation | stopping
         self.map_name: str | None = None
         self.error: str | None = None
+        self.explore_strategy: str | None = None   # a da última exploração iniciada
         self._cmds: dict[str, str] = {}
         self._nav_failed = False       # o Nav2 abortou a subida (ver NAV_BRINGUP_FAILED)
         self._nav_restarts = 0
@@ -133,16 +138,20 @@ class Launcher:
             if m:
                 message = m.group(1)
                 break
-        return {'running': self.running('explore'), 'message': message}
+        return {'running': self.running('explore'), 'message': message,
+                'strategy': self.explore_strategy}
 
-    def start_explore(self) -> tuple[bool, str]:
+    def start_explore(self, strategy: str = DEFAULT_STRATEGY) -> tuple[bool, str]:
+        if strategy not in EXPLORE_STRATEGIES:
+            return False, f'Estratégia de exploração inválida: {strategy}'
         with self._lock:
             if self.mode != 'mapping':
                 return False, 'A exploração automática só funciona durante um mapeamento'
             if self.running('explore'):
                 return False, 'A exploração já está em andamento'
             self._logs['explore'].clear()
-            self._spawn('explore', _commands('mapping', '')['explore'])
+            self.explore_strategy = strategy
+            self._spawn('explore', _commands('mapping', '', strategy)['explore'])
         return True, 'exploração iniciada'
 
     def stop_explore(self, wait: bool = False) -> None:
@@ -162,11 +171,14 @@ class Launcher:
 
     # ── Sessões ──────────────────────────────────────────────────────────────
 
-    def start_session(self, mode: str, name: str, explore: bool = False) -> tuple[bool, str]:
-        """explore=True (só no mapeamento): inicia a exploração automática
-        assim que a pilha estiver no ar."""
+    def start_session(self, mode: str, name: str, explore: bool = False,
+                      strategy: str = DEFAULT_STRATEGY) -> tuple[bool, str]:
+        """explore=True (só no mapeamento): inicia a exploração automática,
+        com a estratégia dada, assim que a pilha estiver no ar."""
         if mode not in ('mapping', 'navigation'):
             return False, 'modo inválido'
+        if strategy not in EXPLORE_STRATEGIES:
+            return False, f'Estratégia de exploração inválida: {strategy}'
         if explore and mode != 'mapping':
             return False, 'A exploração automática só funciona durante um mapeamento'
         if not MAP_NAME_RE.match(name or ''):
@@ -181,12 +193,13 @@ class Launcher:
                 return False, 'Já existe uma sessão ativa; pare antes de iniciar outra'
             self.mode, self.map_name, self.error = 'starting', name, None
 
-        threading.Thread(target=self._start_sequence, args=(mode, str(path), explore),
+        threading.Thread(target=self._start_sequence, args=(mode, str(path), explore, strategy),
                          daemon=True).start()
         return True, 'iniciando'
 
-    def _start_sequence(self, mode: str, db_path: str, explore: bool = False):
-        cmds = self._cmds = _commands(mode, db_path)
+    def _start_sequence(self, mode: str, db_path: str, explore: bool = False,
+                        strategy: str = DEFAULT_STRATEGY):
+        cmds = self._cmds = _commands(mode, db_path, strategy)
         self._nav_failed, self._nav_restarts = False, 0
         try:
             self._spawn('base', cmds['base'])
@@ -205,6 +218,7 @@ class Launcher:
             if explore:
                 # o explorador espera sozinho o mapa, o TF e o Nav2 ficarem prontos
                 self._logs['explore'].clear()
+                self.explore_strategy = strategy
                 self._spawn('explore', cmds['explore'])
 
     def stop_session(self) -> None:

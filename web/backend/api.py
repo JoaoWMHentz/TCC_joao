@@ -4,12 +4,13 @@ api.py — rotas HTTP da interface de operação.
 Sessão      GET  /api/status            estado geral
             GET  /api/maps              mapas salvos
             DELETE /api/maps/<name>     exclui um mapa salvo (e seus destinos/rotas)
-            POST /api/session/mapping   {name, explore?}  cria um mapa novo
+            POST /api/session/mapping   {name, explore?, strategy?}  cria um mapa novo
                                         (explore=true: já explorando sozinho)
             POST /api/session/navigation {name} abre um mapa salvo
             POST /api/session/stop
             GET  /api/logs/<processo>   últimas linhas de base | slam | nav | explore
-Exploração  POST /api/explore/start     exploração automática (só no mapeamento)
+Exploração  POST /api/explore/start     {strategy?} exploração automática (só no mapeamento)
+                                        strategy: wall_bfs (padrão) | pocket | frontier
             POST /api/explore/stop
 Mapa        GET  /api/map               PNG (base64) + metadados
 Controle    POST /api/goal              {x, y, theta}
@@ -30,7 +31,7 @@ from flask import Blueprint, jsonify, request
 
 import db
 import ros_bridge
-from launcher import MAP_NAME_RE
+from launcher import DEFAULT_STRATEGY, MAP_NAME_RE
 
 api = Blueprint('api', __name__, url_prefix='/api')
 launcher = None  # injetado pelo app
@@ -128,7 +129,8 @@ def start_session(mode: str):
         return jsonify({'ok': True})
     body = _body()
     ok, message = launcher.start_session(mode, (body.get('name') or '').strip(),
-                                         explore=bool(body.get('explore')))
+                                         explore=bool(body.get('explore')),
+                                         strategy=_strategy(body))
     if not ok:
         raise ApiError(message, 409)
     node = ros_bridge.node()
@@ -155,10 +157,14 @@ def explore(action: str):
     node = ros_bridge.node()
     if node:
         node.cancel()            # o explorador passa a mandar os destinos
-    ok, message = launcher.start_explore()
+    ok, message = launcher.start_explore(_strategy(_body()))
     if not ok:
         raise ApiError(message, 409)
     return jsonify({'ok': True})
+
+
+def _strategy(body: dict) -> str:
+    return (body.get('strategy') or DEFAULT_STRATEGY).strip()
 
 
 def _take_control():

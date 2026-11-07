@@ -19,7 +19,7 @@ export interface Status {
   error: string | null;
   ros_ok: boolean;
   processes: Record<'base' | 'slam' | 'nav', boolean>;
-  explore?: { running: boolean; message: string | null };
+  explore?: { running: boolean; message: string | null; strategy?: ExploreStrategy | null };
   mission: Mission | null;
   hardware: Record<string, HardwareItem>;
 }
@@ -106,3 +106,5 @@ export interface HistorySummary {
 }
 
 export type XY = [number, number];
+
+export type ExploreStrategy = 'wall_bfs' | 'pocket' | 'frontier';

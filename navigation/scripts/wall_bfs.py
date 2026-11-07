@@ -218,3 +218,71 @@ def _front_factor(view: ScanView, p: WallParams) -> float:
     cai linearmente na slow_zone até o mínimo em front_clearance."""
     k = (view.front - p.front_clearance) / max(p.slow_zone, 1e-3)
     return max(p.min_linear_speed / p.linear_speed, min(1.0, k))
+
+
+# ── Caminho percorrido (memória dos lugares já visitados) ────────────────────
+
+class PathMemory:
+    """Caminho percorrido pelo robô: um ponto a cada `spacing` m, com a
+    orientação e a distância acumulada pelo caminho.
+
+    Serve para o seguidor de parede perceber que está passando de novo por
+    onde já passou (`revisit`) — e largar a parede em vez de dar a mesma
+    volta indefinidamente.
+    """
+
+    def __init__(self, spacing: float = 0.05):
+        self.spacing = spacing
+        self._xy = np.empty((256, 2))
+        self._yaw = np.empty(256)
+        self._s = np.empty(256)
+        self.n = 0
+
+    def __len__(self) -> int:
+        return self.n
+
+    @property
+    def xy(self) -> np.ndarray:
+        """Pontos (x, y) registrados, em ordem (visão, não cópia)."""
+        return self._xy[:self.n]
+
+    @property
+    def length(self) -> float:
+        """Distância total percorrida (m)."""
+        return float(self._s[self.n - 1]) if self.n else 0.0
+
+    def add(self, x: float, y: float, yaw: float) -> bool:
+        """Registra a pose se andou pelo menos `spacing` desde o último ponto."""
+        if self.n:
+            step = math.hypot(x - self._xy[self.n - 1, 0], y - self._xy[self.n - 1, 1])
+            if step < self.spacing:
+                return False
+        else:
+            step = 0.0
+        if self.n == len(self._s):
+            self._xy = np.concatenate([self._xy, np.empty_like(self._xy)])
+            self._yaw = np.concatenate([self._yaw, np.empty_like(self._yaw)])
+            self._s = np.concatenate([self._s, np.empty_like(self._s)])
+        self._xy[self.n] = (x, y)
+        self._yaw[self.n] = yaw
+        self._s[self.n] = self.length + step
+        self.n += 1
+        return True
+
+    def revisit(self, x: float, y: float, yaw: float, radius: float, min_gap: float,
+                max_heading: float = math.radians(60)) -> int | None:
+        """Índice do ponto mais antigo já percorrido a menos de `radius` m de
+        (x, y), no mesmo sentido (orientação a menos de `max_heading` rad), e
+        que ficou pelo menos `min_gap` m de caminho para trás — ou None.
+
+        O sentido conta porque, seguindo a parede, passar de novo pelo mesmo
+        lugar no mesmo sentido é repetir a volta; no sentido contrário é o
+        outro lado de um corredor ou de uma gôndola (parede nova).
+        """
+        k = int(np.searchsorted(self._s[:self.n], self.length - min_gap, side='right'))
+        if k == 0:
+            return None
+        d2 = ((self._xy[:k, 0] - x) ** 2 + (self._xy[:k, 1] - y) ** 2)
+        dyaw = np.abs((self._yaw[:k] - yaw + math.pi) % (2 * math.pi) - math.pi)
+        hit = np.flatnonzero((d2 < radius * radius) & (dyaw < max_heading))
+        return int(hit[0]) if hit.size else None
