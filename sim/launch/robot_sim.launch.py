@@ -66,7 +66,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('start_world', default_value='true'),
-        DeclareLaunchArgument('world', default_value='loja'),
+        DeclareLaunchArgument('world', default_value='supermercado'),
         DeclareLaunchArgument('gui', default_value='true'),
         DeclareLaunchArgument('people', default_value='false'),
         world,

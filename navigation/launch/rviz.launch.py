@@ -1,5 +1,5 @@
 """
-rviz.launch.py — RViz2 com mapa, costmaps, laser, caminho planejado e robô.
+rviz.launch.py — RViz2 (vista 3D) com mapa, costmaps, laser, nuvens 3D, caminho e robô.
 
 Ferramentas na barra do RViz:
   "2D Pose Estimate" -> /initialpose (corrigir a localização)

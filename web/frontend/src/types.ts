@@ -19,6 +19,7 @@ export interface Status {
   error: string | null;
   ros_ok: boolean;
   processes: Record<'base' | 'slam' | 'nav', boolean>;
+  explore?: { running: boolean; message: string | null };
   mission: Mission | null;
   hardware: Record<string, HardwareItem>;
 }

@@ -47,8 +47,8 @@ fluxo de dados em [docs/arquitetura.md](docs/arquitetura.md).
 | `description` | URDF do robô (geometria, rodas, LiDAR, câmera, IMU) |
 | `hardware` | Driver ROS 2 da base (`hardware_node`) e firmwares dos microcontroladores |
 | `bringup` | Launch do robô físico: driver, RPLidar, Astra, filtro do laser |
-| `navigation` | Configuração e launches do RTAB-Map e do Nav2 |
-| `sim` | Mundo Gazebo de uma loja, robô simulado e ponte de tópicos |
+| `navigation` | Configuração e launches do RTAB-Map e do Nav2; exploração automática por fronteiras |
+| `sim` | Mundos Gazebo (supermercado 30 x 20 m e loja 12 x 8 m), pessoas, robô simulado e ponte de tópicos |
 | `web` | Interface de operação (backend Python e frontend TypeScript) |
 | `tools` | Métricas de avaliação e emulador dos firmwares |
 | `tests` | Testes automatizados |
@@ -97,7 +97,8 @@ O usuário precisa estar no grupo `docker` (`sudo usermod -aG docker $USER`).
 ```bash
 cd ~/ros2_ws/src/TCC_joao
 ./scripts/start_sim.sh              # Gazebo com janela + interface web
-./scripts/start_sim.sh --people     # com uma pessoa caminhando (obstáculo dinâmico)
+./scripts/start_sim.sh --people     # com pessoas caminhando (sim/config/mundos/<mundo>.yaml)
+./scripts/start_sim.sh --world loja # mundo menor (padrão: supermercado 30 x 20 m)
 ./scripts/start_sim.sh --headless   # sem janela do Gazebo
 ```
 

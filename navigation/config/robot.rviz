@@ -3,6 +3,8 @@ Panels:
     Name: Displays
   - Class: rviz_common/Tool Properties
     Name: Tool Properties
+  - Class: rviz_common/Views
+    Name: Views
 Visualization Manager:
   Class: ""
   Displays:
@@ -57,11 +59,24 @@ Visualization Manager:
       Size (m): 0.04
     - Class: rviz_default_plugins/PointCloud2
       Name: Nuvem da câmera
-      Enabled: false
+      Enabled: true
       Topic:
         Value: /camera/depth/points
         Reliability Policy: Best Effort
-      Size (m): 0.02
+      Style: Points
+      Size (Pixels): 3
+      Color Transformer: AxisColor
+      Axis: Z
+    - Class: rtabmap_rviz_plugins/MapCloud
+      Name: Mapa 3D (RTAB-Map)
+      Enabled: true
+      Topic:
+        Value: /mapData
+        Reliability Policy: Reliable
+      Style: Points
+      Size (Pixels): 2
+      Cloud decimation: 4
+      Cloud max depth (m): 4
     - Class: rviz_default_plugins/Path
       Name: Caminho planejado
       Enabled: true
@@ -93,12 +108,36 @@ Visualization Manager:
         Value: /goal_pose
     - Class: rviz_default_plugins/Measure
   Views:
+    # 3D, seguindo o robô: arraste com o botão esquerdo para girar, rodinha
+    # para zoom, Shift+arrastar para mover. A vista de cima (2D) fica salva
+    # no painel "Views" (duplo clique em "Vista de cima").
     Current:
-      Class: rviz_default_plugins/TopDownOrtho
-      Name: Vista de cima
-      Scale: 60
-      X: 0
-      Y: 0
+      Class: rviz_default_plugins/Orbit
+      Name: 3D (segue o robô)
+      Target Frame: base_link
+      Distance: 8
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Pitch: 0.7
+      Yaw: 3.5
+    Saved:
+      - Class: rviz_default_plugins/TopDownOrtho
+        Name: Vista de cima
+        Scale: 30
+        X: 0
+        Y: 0
+      - Class: rviz_default_plugins/Orbit
+        Name: 3D (mapa todo)
+        Target Frame: map
+        Distance: 30
+        Focal Point:
+          X: 0
+          Y: 0
+          Z: 0
+        Pitch: 0.9
+        Yaw: 4.2
 Window Geometry:
   Width: 1400
   Height: 900

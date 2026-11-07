@@ -21,6 +21,50 @@ case "$XDG_DATA_DIRS" in *"/snap/code"*) export XDG_DATA_DIRS=/usr/local/share:/
 source /opt/ros/jazzy/setup.bash
 export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
 
+# Encerra o que sobrou de execuções anteriores (Gazebo, launches, nós, RViz,
+# backend). Duas simulações abertas ao mesmo tempo dividem os mesmos tópicos
+# do Gazebo e do ROS e se misturam: robôs/pessoas criados no mundo errado,
+# leituras de sensor de outra simulação. Não mexe no PostgreSQL (docker).
+LEFTOVER_PATTERNS=(
+    "ros2 launch" "ros2 run" "gz sim" "rviz2"
+    "/opt/ros/jazzy/lib/" "$WS_DIR/install/"
+    "$VENV/bin/python app.py"
+)
+
+# PIDs que casam com LEFTOVER_PATTERNS, exceto este script e quem o chamou
+# (o terminal que rodou o start_sim.sh não pode ser morto).
+_leftover_pids() {
+    local protect=" " pid=$$ p
+    while [ -n "$pid" ] && [ "$pid" -gt 1 ]; do
+        protect+="$pid "
+        pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+    done
+    protect+="$BASHPID "
+    for p in "${LEFTOVER_PATTERNS[@]}"; do pgrep -f -- "$p"; done | sort -un |
+        while read -r pid; do
+            case "$protect" in *" $pid "*) ;; *) echo "$pid" ;; esac
+        done
+}
+
+kill_ros_leftovers() {
+    local pids
+    pids=$(_leftover_pids)
+    if [ -n "$pids" ]; then
+        echo "[start] encerrando processos ROS/Gazebo de execuções anteriores:"
+        ps -o pid=,args= -p $pids 2>/dev/null | cut -c1-150 | sed 's/^/    /'
+        # Ctrl+C primeiro (deixa salvar/fechar direito), depois força
+        kill -INT $pids 2>/dev/null
+        for _ in $(seq 10); do
+            pids=$(_leftover_pids)
+            [ -z "$pids" ] && break
+            sleep 0.5
+        done
+        [ -n "$pids" ] && kill -KILL $pids 2>/dev/null
+    fi
+    # O daemon do ros2 guarda a lista de nós antigos; reinicia limpo
+    ros2 daemon stop >/dev/null 2>&1
+}
+
 build_workspace() {
     echo "[start] compilando o workspace ($WS_DIR)..."
     (cd "$WS_DIR" && colcon build --symlink-install \

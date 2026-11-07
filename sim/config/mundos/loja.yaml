@@ -1,0 +1,30 @@
+# Mundo "loja" (sim/worlds/loja.sdf): loja pequena, 12 x 8 m.
+#
+# robo:    onde o robô nasce (x, y em metros; yaw em radianos)
+# pessoas: clientes caminhando (obstáculos dinâmicos), com people:=true.
+#   Cada pessoa anda em vai-e-vem pelo "caminho" (pontos x, y do mundo).
+#   velocidade: m/s (cliente olhando as prateleiras: 0.3 a 0.6)
+#   atraso:     s antes de começar a andar (desencontra as pessoas)
+#   Os caminhos não podem atravessar móveis nem paredes: a pessoa (actor)
+#   não tem colisão e passaria por dentro deles.
+#
+# Planta: corredor principal em y ~ -1.8, corredor central em x ~ 0,
+# corredores entre gôndolas em y ~ 1.6 e 3.3, pilar em (0, -1).
+
+robo: {x: -4.0, y: -0.8, yaw: 0.0}
+
+pessoas:
+  - nome: cliente_corredor        # anda ao longo do corredor principal
+    caminho: [[-3.5, -1.8], [1.8, -1.8]]
+    velocidade: 0.5
+    atraso: 0.0
+
+  - nome: cliente_cruzando        # cruza o corredor principal pelo meio da loja
+    caminho: [[0.0, 3.3], [0.0, 0.0], [0.7, -0.4], [0.7, -2.8]]   # contorna o pilar
+    velocidade: 0.4
+    atraso: 4.0
+
+  - nome: cliente_gondolas        # passeia entre as gôndolas da esquerda
+    caminho: [[-4.6, 1.6], [-1.0, 1.6]]
+    velocidade: 0.35
+    atraso: 2.0

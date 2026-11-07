@@ -6,7 +6,9 @@ Sessão      GET  /api/status            estado geral
             POST /api/session/mapping   {name}  cria um mapa novo
             POST /api/session/navigation {name} abre um mapa salvo
             POST /api/session/stop
-            GET  /api/logs/<processo>   últimas linhas de base | slam | nav
+            GET  /api/logs/<processo>   últimas linhas de base | slam | nav | explore
+Exploração  POST /api/explore/start     exploração automática (só no mapeamento)
+            POST /api/explore/stop
 Mapa        GET  /api/map               PNG (base64) + metadados
 Controle    POST /api/goal              {x, y, theta}
             POST /api/cancel
@@ -121,6 +123,31 @@ def get_logs(name: str):
     return jsonify(launcher.logs(name))
 
 
+# ── Exploração automática ────────────────────────────────────────────────────
+
+@api.post('/explore/<action>')
+def explore(action: str):
+    if action == 'stop':
+        launcher.stop_explore()
+        return jsonify({'ok': True})
+    if action != 'start':
+        raise ApiError('ação inválida', 404)
+    node = ros_bridge.node()
+    if node:
+        node.cancel()            # o explorador passa a mandar os destinos
+    ok, message = launcher.start_explore()
+    if not ok:
+        raise ApiError(message, 409)
+    return jsonify({'ok': True})
+
+
+def _take_control():
+    """Comando manual (destino, rota, teleoperação, cancelar) encerra a
+    exploração automática, para os dois não disputarem o Nav2."""
+    if launcher.running('explore'):
+        launcher.stop_explore()
+
+
 # ── Mapa ─────────────────────────────────────────────────────────────────────
 
 @api.get('/map')
@@ -136,6 +163,7 @@ def get_map():
 @api.post('/goal')
 def send_goal():
     body = _body()
+    _take_control()
     target = {'name': 'destino marcado', 'x': _number(body, 'x'), 'y': _number(body, 'y'),
               'theta': _number(body, 'theta', 0.0)}
     ok, message = _node().start_mission('goal', 'Destino no mapa', [target])
@@ -146,6 +174,7 @@ def send_goal():
 
 @api.post('/cancel')
 def cancel():
+    _take_control()
     _node().cancel()
     return jsonify({'ok': True})
 
@@ -162,6 +191,8 @@ def teleop():
     body = _body()
     linear = max(-0.3, min(0.3, _number(body, 'linear', 0.0)))
     angular = max(-1.0, min(1.0, _number(body, 'angular', 0.0)))
+    if linear or angular:
+        _take_control()
     _node().teleop(linear, angular)
     return jsonify({'ok': True})
 
@@ -210,6 +241,7 @@ def go_to_point(point_id: int):
         raise ApiError('Destino não encontrado', 404)
     if point['map'] != _active_map():
         raise ApiError('Este destino pertence a outro mapa', 409)
+    _take_control()
     ok, message = _node().start_mission('point', point['name'], [dict(point)])
     if not ok:
         raise ApiError(message, 503)
@@ -259,6 +291,7 @@ def run_route(route_id: int):
     points = [dict(p) for p in db.route_points(route)]
     if len(points) < 2:
         raise ApiError('A rota tem menos de dois destinos válidos', 409)
+    _take_control()
     ok, message = _node().start_mission('route', route['name'], points)
     if not ok:
         raise ApiError(message, 503)

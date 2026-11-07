@@ -30,7 +30,7 @@ import config
 log = logging.getLogger('launcher')
 
 MAP_NAME_RE = re.compile(r'^[A-Za-z0-9_-]{1,40}$')
-STOP_GRACE_S = {'slam': 60.0}
+STOP_GRACE_S = {'slam': 60.0, 'explore': 5.0}
 DEFAULT_STOP_GRACE_S = 10.0
 START_DELAY_S = 5.0  # espera a base publicar odom/TF antes do RTAB-Map
 
@@ -50,7 +50,12 @@ def _commands(mode: str, db_path: str) -> dict[str, str]:
                  f'db_path:={db_path} use_camera:={camera} use_sim_time:={sim}'),
         'nav': (f'ros2 launch navigation nav2.launch.py '
                 f'use_sim_time:={sim} allow_unknown:={allow_unknown}'),
+        'explore': f'ros2 launch navigation explore.launch.py use_sim_time:={sim}',
     }
+
+
+# "[INFO] [1712345.678] [frontier_explorer]: mensagem" -> "mensagem"
+LOG_MSG_RE = re.compile(r'\[[A-Z]+\] \[[\d.]+\] \[[^\]]+\]: (.*)$')
 
 
 class Launcher:
@@ -60,7 +65,8 @@ class Launcher:
     def __init__(self):
         self._lock = threading.Lock()
         self._procs: dict[str, subprocess.Popen] = {}
-        self._logs: dict[str, deque] = {name: deque(maxlen=300) for name in self.ORDER}
+        self._logs: dict[str, deque] = {name: deque(maxlen=300)
+                                         for name in (*self.ORDER, 'explore')}
         self.mode = 'idle'        # idle | starting | mapping | navigation | stopping
         self.map_name: str | None = None
         self.error: str | None = None
@@ -90,10 +96,47 @@ class Launcher:
             'sim': config.SIM,
             'error': self.error,
             'processes': {name: self.running(name) for name in self.ORDER},
+            'explore': self.explore_status(),
         }
 
     def logs(self, name: str) -> list[str]:
         return list(self._logs.get(name, []))
+
+    # ── Exploração automática (só durante o mapeamento) ─────────────────────
+
+    def explore_status(self) -> dict:
+        message = None
+        for line in reversed(self._logs['explore']):
+            m = LOG_MSG_RE.search(line)
+            if m:
+                message = m.group(1)
+                break
+        return {'running': self.running('explore'), 'message': message}
+
+    def start_explore(self) -> tuple[bool, str]:
+        with self._lock:
+            if self.mode != 'mapping':
+                return False, 'A exploração automática só funciona durante um mapeamento'
+            if self.running('explore'):
+                return False, 'A exploração já está em andamento'
+            self._logs['explore'].clear()
+            self._spawn('explore', _commands('mapping', '')['explore'])
+        return True, 'exploração iniciada'
+
+    def stop_explore(self, wait: bool = False) -> None:
+        """Encerra o explorador. O SIGINT sai na hora (ele cancela o destino no
+        Nav2 e para de mandar outros); a espera/escalada fica em segundo plano."""
+        proc = self._procs.get('explore')
+        if proc is None or proc.poll() is not None:
+            return
+        try:
+            os.killpg(proc.pid, signal.SIGINT)
+        except ProcessLookupError:
+            return
+        if wait:
+            self._stop('explore')
+        else:
+            threading.Thread(target=self._stop, args=('explore',), daemon=True).start()
 
     # ── Sessões ──────────────────────────────────────────────────────────────
 
@@ -137,6 +180,7 @@ class Launcher:
             if self.mode == 'stopping':
                 return
             self.mode = 'stopping'
+        self.stop_explore(wait=True)
         for name in reversed(self.ORDER):
             self._stop(name)
         with self._lock:

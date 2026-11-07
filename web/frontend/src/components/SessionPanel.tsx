@@ -43,6 +43,16 @@ export default function SessionPanel({ status, notify }: Props) {
     }
   };
 
+  const exploring = status?.explore?.running ?? false;
+  const toggleExplore = async () => {
+    try {
+      await api(`/explore/${exploring ? 'stop' : 'start'}`, {});
+      notify(exploring ? 'Exploração automática parada' : 'Exploração automática iniciada');
+    } catch (e) {
+      notify((e as Error).message, true);
+    }
+  };
+
   const stop = async () => {
     try {
       await api('/session/stop', {});
@@ -62,9 +72,25 @@ export default function SessionPanel({ status, notify }: Props) {
       {status?.error && <p className="error-text">{status.error}</p>}
 
       {busy ? (
-        <button className="danger wide" onClick={stop} disabled={mode === 'stopping'}>
-          {mode === 'mapping' ? 'Concluir e salvar mapa' : 'Parar'}
-        </button>
+        <>
+          {mode === 'mapping' && (
+            <>
+              <button className={`wide ${exploring ? '' : 'primary'}`} onClick={toggleExplore}>
+                {exploring ? 'Parar exploração automática' : 'Explorar automaticamente'}
+              </button>
+              {status?.explore?.message && <p className="hint">{status.explore.message}</p>}
+              {!exploring && (
+                <p className="hint">
+                  O robô vai sozinho até as bordas do que ainda não foi mapeado, até cobrir o ambiente. Qualquer
+                  comando manual (destino, setas) interrompe a exploração.
+                </p>
+              )}
+            </>
+          )}
+          <button className="danger wide" onClick={stop} disabled={mode === 'stopping'}>
+            {mode === 'mapping' ? 'Concluir e salvar mapa' : 'Parar'}
+          </button>
+        </>
       ) : (
         <>
           <label className="field">

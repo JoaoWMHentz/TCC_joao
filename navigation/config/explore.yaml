@@ -1,0 +1,25 @@
+# Exploração automática por fronteiras (scripts/frontier_explorer.py).
+# Só faz sentido durante o mapeamento (RTAB-Map em mode:=mapping + Nav2 com
+# allow_unknown:=true, que é o que a interface web sobe em "Mapear").
+frontier_explorer:
+  ros__parameters:
+    global_frame: map
+    robot_base_frame: base_link
+    map_topic: /map
+    costmap_topic: /global_costmap/costmap
+
+    min_frontier_size: 0.5        # m — fronteiras menores são ignoradas (ruído)
+    # nota = distance_weight * distância (m) - size_weight * tamanho (m);
+    # a menor nota vence. Aumente size_weight para preferir áreas grandes
+    # mesmo que mais longe; aumente distance_weight para varrer o mais perto.
+    distance_weight: 1.0
+    size_weight: 0.5
+
+    min_goal_distance: 0.4        # m — não manda destino colado no robô
+    frontier_gone_distance: 0.5   # m — fronteira atual "sumiu" (foi revelada): troca
+    blacklist_radius: 0.6         # m — raio em volta de destinos descartados
+    progress_distance: 0.15       # m — quanto precisa andar para contar progresso
+    progress_timeout: 30.0        # s — sem progresso: desiste do destino
+    goal_timeout: 180.0           # s — tempo máximo por destino
+    return_to_start: true         # ao terminar, volta ao ponto de partida
+    update_period: 1.0            # s — período do ciclo de decisão

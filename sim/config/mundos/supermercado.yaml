@@ -1,0 +1,84 @@
+# Mundo "supermercado" (sim/worlds/supermercado.sdf, gerado por
+# sim/scripts/gerar_supermercado.py): 30 x 20 m, x de -15 a 15, y de -10 a 10.
+#
+# robo:    onde o robô nasce (x, y em metros; yaw em radianos)
+# pessoas: clientes caminhando (obstáculos dinâmicos), com people:=true.
+#   Cada pessoa anda em vai-e-vem pelo "caminho" (pontos x, y do mundo).
+#   velocidade: m/s (cliente olhando as prateleiras: 0.3 a 0.6)
+#   atraso:     s antes de começar a andar (desencontra as pessoas)
+#   Os caminhos não podem atravessar móveis nem paredes: a pessoa (actor)
+#   não tem colisão e passaria por dentro deles.
+#
+# Planta (centros dos corredores livres):
+#   corredores entre gôndolas (y de -2.5 a 4.9): x = -12.0 (padaria), -9, -6,
+#     -3, 0, 3, 6.7 (lado do hortifrúti)
+#   corredor da frente (pilares/paletes em y = -4.35): y ~ -3.4 ou ~ -5.3
+#   entre as pontas de gôndola e as ilhas de congelados: y ~ 5.7
+#   entre as ilhas e as geladeiras: y ~ 8.3
+#   hortifrúti: x ~ 6.7, 10.6 e 13.5 (y de -3 a 6.5)
+#   pistas dos caixas (y de -6.2 a -8.6): x ~ -9.3, -6.3, -3.3, -0.3, 2.7
+#   faixa de saída atrás dos caixas: y ~ -9.25
+#   carrinhos largados: (-2.45, 2.0) e (3.55, 0.0)
+
+robo: {x: -13.2, y: -4.6, yaw: 0.0}
+
+pessoas:
+  - nome: cliente_corredor_1      # corredor 2 (x = -9), de ponta a ponta
+    caminho: [[-9.0, -1.8], [-9.0, 4.2]]
+    velocidade: 0.45
+    atraso: 0.0
+
+  - nome: cliente_corredor_3      # corredor 4 (x = -3), passa pelo carrinho largado
+    caminho: [[-3.3, 4.2], [-3.3, -1.8]]
+    velocidade: 0.4
+    atraso: 3.0
+
+  - nome: cliente_corredor_5      # corredor 6 (x = 3), passa pelo carrinho largado
+    caminho: [[2.7, -1.8], [2.7, 4.2]]
+    velocidade: 0.5
+    atraso: 6.0
+
+  - nome: cliente_sai_corredor    # desce o corredor central e vira na frente
+    caminho: [[0.0, 4.0], [0.0, -3.4], [-4.5, -3.4]]
+    velocidade: 0.45
+    atraso: 1.5
+
+  - nome: cliente_frente          # corredor da frente, entre paletes e caixas
+    caminho: [[-11.0, -5.3], [7.0, -5.3]]
+    velocidade: 0.5
+    atraso: 0.0
+
+  - nome: cliente_geladeiras      # olhando as geladeiras
+    caminho: [[-13.0, 8.3], [12.0, 8.3]]
+    velocidade: 0.4
+    atraso: 2.0
+
+  - nome: cliente_pontas          # entre as pontas de gôndola e os congelados
+    caminho: [[-11.0, 5.7], [5.5, 5.7]]
+    velocidade: 0.45
+    atraso: 5.0
+
+  - nome: cliente_hortifruti_1    # entre as bancas do hortifrúti
+    caminho: [[10.6, -2.8], [10.6, 6.5]]
+    velocidade: 0.35
+    atraso: 0.0
+
+  - nome: cliente_hortifruti_2    # entre as gôndolas e o hortifrúti
+    caminho: [[6.7, -3.0], [6.7, 5.8]]
+    velocidade: 0.4
+    atraso: 4.0
+
+  - nome: cliente_caixa           # passa pelo caixa e sai pela faixa de trás
+    caminho: [[-3.3, -6.0], [-3.3, -9.25], [2.5, -9.25]]
+    velocidade: 0.4
+    atraso: 2.5
+
+  - nome: cliente_padaria         # em frente ao balcão da padaria
+    caminho: [[-12.0, -3.0], [-12.0, 6.0]]
+    velocidade: 0.35
+    atraso: 1.0
+
+  - nome: cliente_entrada         # entra pela porta e vai para o hortifrúti
+    caminho: [[8.5, -6.8], [13.0, -6.8], [13.0, -3.2]]
+    velocidade: 0.45
+    atraso: 3.5
