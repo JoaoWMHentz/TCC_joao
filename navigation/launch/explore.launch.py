@@ -1,5 +1,12 @@
 """
-explore.launch.py — exploração automática por fronteiras.
+explore.launch.py — exploração automática.
+
+Estratégias (argumento strategy):
+  wall_bfs  (padrão) segue a parede e, quando ela deixa de revelar mapa,
+            usa BFS no /map para ir à fronteira alcançável mais próxima
+            (scripts/wall_bfs_explorer.py);
+  frontier  escolhe fronteiras por nota distância x tamanho e vai sempre
+            pelo Nav2 (scripts/frontier_explorer.py).
 
 Requer o mapeamento rodando (slam.launch.py mode:=mapping) e o Nav2
 (nav2.launch.py allow_unknown:=true). Pela interface web, use o botão
@@ -7,6 +14,7 @@ Requer o mapeamento rodando (slam.launch.py mode:=mapping) e o Nav2
 
 Uso:
   ros2 launch navigation explore.launch.py use_sim_time:=true
+  ros2 launch navigation explore.launch.py strategy:=frontier
 """
 
 import os
@@ -14,23 +22,32 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition
+from launch.substitutions import EqualsSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
     config = os.path.join(get_package_share_directory('navigation'), 'config', 'explore.yaml')
+    overrides = {
+        'use_sim_time': ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool),
+        'return_to_start': ParameterValue(LaunchConfiguration('return_to_start'), value_type=bool),
+    }
+
+    def explorer(strategy, executable):
+        return Node(
+            package='navigation', executable=executable, name=executable.removesuffix('.py'),
+            output='screen', parameters=[config, overrides],
+            condition=IfCondition(EqualsSubstitution(LaunchConfiguration('strategy'), strategy)),
+        )
+
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         DeclareLaunchArgument('return_to_start', default_value='true'),
-        Node(
-            package='navigation', executable='frontier_explorer.py', name='frontier_explorer',
-            output='screen',
-            parameters=[config, {
-                'use_sim_time': ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool),
-                'return_to_start': ParameterValue(LaunchConfiguration('return_to_start'),
-                                                  value_type=bool),
-            }],
-        ),
+        DeclareLaunchArgument('strategy', default_value='wall_bfs',
+                              choices=['wall_bfs', 'frontier'],
+                              description='wall_bfs: seguir parede + BFS; frontier: fronteiras via Nav2'),
+        explorer('wall_bfs', 'wall_bfs_explorer.py'),
+        explorer('frontier', 'frontier_explorer.py'),
     ])

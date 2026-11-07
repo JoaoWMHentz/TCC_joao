@@ -3,7 +3,9 @@ api.py — rotas HTTP da interface de operação.
 
 Sessão      GET  /api/status            estado geral
             GET  /api/maps              mapas salvos
-            POST /api/session/mapping   {name}  cria um mapa novo
+            DELETE /api/maps/<name>     exclui um mapa salvo (e seus destinos/rotas)
+            POST /api/session/mapping   {name, explore?}  cria um mapa novo
+                                        (explore=true: já explorando sozinho)
             POST /api/session/navigation {name} abre um mapa salvo
             POST /api/session/stop
             GET  /api/logs/<processo>   últimas linhas de base | slam | nav | explore
@@ -28,6 +30,7 @@ from flask import Blueprint, jsonify, request
 
 import db
 import ros_bridge
+from launcher import MAP_NAME_RE
 
 api = Blueprint('api', __name__, url_prefix='/api')
 launcher = None  # injetado pelo app
@@ -99,6 +102,21 @@ def get_maps():
     return jsonify(launcher.list_maps())
 
 
+@api.delete('/maps/<name>')
+def delete_map(name: str):
+    if not MAP_NAME_RE.match(name):
+        raise ApiError('Nome de mapa inválido')
+    if launcher.map_name == name and launcher.mode != 'idle':
+        raise ApiError('Este mapa está em uso; pare a sessão antes de excluí-lo', 409)
+    if not launcher.map_path(name).exists():
+        raise ApiError(f'Mapa "{name}" não encontrado', 404)
+    db.delete_map_data(name)        # antes do arquivo: se o banco falhar, nada some
+    ok, message = launcher.delete_map(name)
+    if not ok:
+        raise ApiError(message, 409)
+    return jsonify({'ok': True})
+
+
 @api.post('/session/<mode>')
 def start_session(mode: str):
     if mode == 'stop':
@@ -108,7 +126,9 @@ def start_session(mode: str):
             node.map_name = None
         launcher.stop_session()
         return jsonify({'ok': True})
-    ok, message = launcher.start_session(mode, (_body().get('name') or '').strip())
+    body = _body()
+    ok, message = launcher.start_session(mode, (body.get('name') or '').strip(),
+                                         explore=bool(body.get('explore')))
     if not ok:
         raise ApiError(message, 409)
     node = ros_bridge.node()

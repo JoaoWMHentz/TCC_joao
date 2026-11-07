@@ -23,21 +23,40 @@ export default function SessionPanel({ status, notify }: Props) {
   const mode = status?.mode ?? 'idle';
   const busy = mode !== 'idle';
 
-  useEffect(() => {
-    if (mode !== 'idle') return;
+  const loadMaps = () =>
     api<SavedMap[]>('/maps')
       .then((list) => {
         setMaps(list);
-        setSelected((cur) => cur || list[0]?.name || '');
+        setSelected((cur) => (list.some((m) => m.name === cur) ? cur : list[0]?.name || ''));
       })
       .catch(() => {});
+
+  useEffect(() => {
+    if (mode === 'idle') loadMaps();
   }, [mode]);
 
-  const start = async (kind: 'mapping' | 'navigation', name: string) => {
+  const start = async (kind: 'mapping' | 'navigation', name: string, explore = false) => {
     try {
-      await api(`/session/${kind}`, { name });
-      notify(kind === 'mapping' ? `Mapeamento "${name}" iniciado` : `Mapa "${name}" aberto`);
+      await api(`/session/${kind}`, { name, explore });
+      notify(
+        kind === 'navigation'
+          ? `Mapa "${name}" aberto`
+          : explore
+            ? `Mapeamento "${name}" iniciado; a exploração autônoma começa quando o robô estiver pronto`
+            : `Mapeamento "${name}" iniciado`,
+      );
       setNewName('');
+    } catch (e) {
+      notify((e as Error).message, true);
+    }
+  };
+
+  const removeMap = async (name: string) => {
+    if (!window.confirm(`Excluir o mapa "${name}"? Os destinos e rotas dele também serão apagados.`)) return;
+    try {
+      await api(`/maps/${encodeURIComponent(name)}`, undefined, 'DELETE');
+      notify(`Mapa "${name}" excluído`);
+      loadMaps();
     } catch (e) {
       notify((e as Error).message, true);
     }
@@ -47,7 +66,7 @@ export default function SessionPanel({ status, notify }: Props) {
   const toggleExplore = async () => {
     try {
       await api(`/explore/${exploring ? 'stop' : 'start'}`, {});
-      notify(exploring ? 'Exploração automática parada' : 'Exploração automática iniciada');
+      notify(exploring ? 'Exploração autônoma parada' : 'Exploração autônoma iniciada');
     } catch (e) {
       notify((e as Error).message, true);
     }
@@ -76,12 +95,12 @@ export default function SessionPanel({ status, notify }: Props) {
           {mode === 'mapping' && (
             <>
               <button className={`wide ${exploring ? '' : 'primary'}`} onClick={toggleExplore}>
-                {exploring ? 'Parar exploração automática' : 'Explorar automaticamente'}
+                {exploring ? 'Parar exploração autônoma' : 'Iniciar exploração autônoma'}
               </button>
               {status?.explore?.message && <p className="hint">{status.explore.message}</p>}
               {!exploring && (
                 <p className="hint">
-                  O robô vai sozinho até as bordas do que ainda não foi mapeado, até cobrir o ambiente. Qualquer
+                  O robô segue as paredes e vai sozinho até o que ainda não foi mapeado, até cobrir o ambiente. Qualquer
                   comando manual (destino, setas) interrompe a exploração.
                 </p>
               )}
@@ -107,6 +126,9 @@ export default function SessionPanel({ status, notify }: Props) {
               <button className="primary" disabled={!selected} onClick={() => start('navigation', selected)}>
                 Abrir
               </button>
+              <button className="danger" disabled={!selected} onClick={() => removeMap(selected)} title="Excluir mapa">
+                Excluir
+              </button>
             </div>
           </label>
           <label className="field">
@@ -123,9 +145,12 @@ export default function SessionPanel({ status, notify }: Props) {
               </button>
             </div>
           </label>
+          <button className="primary wide" disabled={!newName.trim()} onClick={() => start('mapping', newName.trim(), true)}>
+            Mapear com exploração autônoma
+          </button>
           <p className="hint">
-            No mapeamento, conduza o robô pelo ambiente (clicando no mapa ou com as setas). Ao concluir, o mapa é
-            salvo.
+            No mapeamento, conduza o robô pelo ambiente (clicando no mapa ou com as setas) ou use a exploração
+            autônoma: ele segue as paredes e vai sozinho até o que ainda não foi mapeado. Ao concluir, o mapa é salvo.
           </p>
         </>
       )}

@@ -85,6 +85,20 @@ class Launcher:
                          'modified': st.st_mtime})
         return maps
 
+    def delete_map(self, name: str) -> tuple[bool, str]:
+        """Apaga o .db de um mapa salvo (não o que está em uso)."""
+        if not MAP_NAME_RE.match(name or ''):
+            return False, 'Nome de mapa inválido'
+        path = self.map_path(name)
+        with self._lock:
+            if self.mode != 'idle' and self.map_name == name:
+                return False, 'Este mapa está em uso; pare a sessão antes de excluí-lo'
+            if not path.exists():
+                return False, f'Mapa "{name}" não encontrado'
+            path.unlink()
+        log.info('mapa "%s" excluído', name)
+        return True, 'excluído'
+
     def running(self, name: str) -> bool:
         proc = self._procs.get(name)
         return proc is not None and proc.poll() is None
@@ -140,9 +154,13 @@ class Launcher:
 
     # ── Sessões ──────────────────────────────────────────────────────────────
 
-    def start_session(self, mode: str, name: str) -> tuple[bool, str]:
+    def start_session(self, mode: str, name: str, explore: bool = False) -> tuple[bool, str]:
+        """explore=True (só no mapeamento): inicia a exploração automática
+        assim que a pilha estiver no ar."""
         if mode not in ('mapping', 'navigation'):
             return False, 'modo inválido'
+        if explore and mode != 'mapping':
+            return False, 'A exploração automática só funciona durante um mapeamento'
         if not MAP_NAME_RE.match(name or ''):
             return False, 'Nome do mapa: use letras, números, "-" ou "_" (até 40)'
         path = self.map_path(name)
@@ -155,11 +173,11 @@ class Launcher:
                 return False, 'Já existe uma sessão ativa; pare antes de iniciar outra'
             self.mode, self.map_name, self.error = 'starting', name, None
 
-        threading.Thread(target=self._start_sequence, args=(mode, str(path)),
+        threading.Thread(target=self._start_sequence, args=(mode, str(path), explore),
                          daemon=True).start()
         return True, 'iniciando'
 
-    def _start_sequence(self, mode: str, db_path: str):
+    def _start_sequence(self, mode: str, db_path: str, explore: bool = False):
         cmds = _commands(mode, db_path)
         try:
             self._spawn('base', cmds['base'])
@@ -172,8 +190,13 @@ class Launcher:
             self.stop_session()
             return
         with self._lock:
-            if self.mode == 'starting':
-                self.mode = mode
+            if self.mode != 'starting':
+                return              # sessão parada durante a partida
+            self.mode = mode
+            if explore:
+                # o explorador espera sozinho o mapa, o TF e o Nav2 ficarem prontos
+                self._logs['explore'].clear()
+                self._spawn('explore', cmds['explore'])
 
     def stop_session(self) -> None:
         with self._lock:

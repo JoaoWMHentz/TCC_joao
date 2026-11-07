@@ -104,6 +104,14 @@ def delete_point(point_id: int) -> bool:
         return True
 
 
+def delete_map_data(map_name: str) -> None:
+    """Remove os destinos e as rotas de um mapa excluído. O histórico de
+    navegação fica (é registro do que aconteceu)."""
+    with cursor() as cur:
+        cur.execute('DELETE FROM routes WHERE map = %s', (map_name,))
+        cur.execute('DELETE FROM points WHERE map = %s', (map_name,))
+
+
 # ── Rotas ────────────────────────────────────────────────────────────────────
 
 def list_routes(map_name: str) -> list[dict]:

@@ -47,7 +47,7 @@ fluxo de dados em [docs/arquitetura.md](docs/arquitetura.md).
 | `description` | URDF do robô (geometria, rodas, LiDAR, câmera, IMU) |
 | `hardware` | Driver ROS 2 da base (`hardware_node`) e firmwares dos microcontroladores |
 | `bringup` | Launch do robô físico: driver, RPLidar, Astra, filtro do laser |
-| `navigation` | Configuração e launches do RTAB-Map e do Nav2; exploração automática por fronteiras |
+| `navigation` | Configuração e launches do RTAB-Map e do Nav2; exploração automática (seguir parede + BFS, ou fronteiras) |
 | `sim` | Mundos Gazebo (supermercado 30 x 20 m e loja 12 x 8 m), pessoas, robô simulado e ponte de tópicos |
 | `web` | Interface de operação (backend Python e frontend TypeScript) |
 | `tools` | Métricas de avaliação e emulador dos firmwares |
