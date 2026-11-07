@@ -25,7 +25,14 @@ DRY_RUN=0
 
 # docs/<arquivo>.md -> nome da página na Wiki
 declare -A PAGES=(
+    [integracao.md]=Como-tudo-funciona
+    [ros2.md]=ROS-2
+    [slam-rtabmap.md]=SLAM-RTAB-Map
+    [navegacao-nav2.md]=Navegacao-Nav2
+    [controle-base.md]=Controle-da-Base
+    [exploracao.md]=Exploracao-Autonoma
     [arquitetura.md]=Arquitetura
+    [decisoes-arquitetura.md]=Decisoes-de-Arquitetura
     [diagramas.md]=Diagramas
     [conformidade-portfolio.md]=Conformidade-Portfolio
 )
@@ -67,9 +74,25 @@ cat > "$WORK/wiki/_Sidebar.md" <<'EOF'
 **Documentação**
 
 - [Início](Home)
-- [Arquitetura](Arquitetura)
+- [Como tudo funciona](Como-tudo-funciona)
+
+**Componentes**
+
+- [ROS 2](ROS-2)
+- [SLAM com RTAB-Map](SLAM-RTAB-Map)
+- [Navegação com Nav2](Navegacao-Nav2)
+- [Controle da base](Controle-da-Base)
+- [Exploração autônoma](Exploracao-Autonoma)
+
+**Arquitetura**
+
+- [Visão geral e dados](Arquitetura)
+- [Decisões (ADRs)](Decisoes-de-Arquitetura)
 - [Diagramas](Diagramas)
-- [Conformidade com o Portfólio](Conformidade-Portfolio)
+
+**Portfólio**
+
+- [Conformidade e justificativas](Conformidade-Portfolio)
 EOF
 
 cd "$WORK/wiki"

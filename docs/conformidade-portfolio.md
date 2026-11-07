@@ -58,7 +58,7 @@ pesquisa: **controle, segurança física e autonomia de navegação**.
 
 | Requisito | Status | Evidência / justificativa |
 |---|---|---|
-| Documentação em Wiki | ✅ | Wiki do GitHub, publicada a partir de `docs/` |
+| Documentação em Wiki | ✅ | Wiki do GitHub, publicada a partir de `docs/`: funcionamento de cada componente, integração, diagramas e registro de decisões ([decisoes-arquitetura.md](decisoes-arquitetura.md)) |
 | Pipeline de CI/CD | 🟡 | dispensado pelos professores: pipeline privado da empresa, robôs com sistema operacional próprio — [J3](#j3-integração-e-entrega-contínuas) |
 | Análise estática de código e segurança | 🟡 | dispensado com o CI/CD — [J4](#j4-análise-estática) |
 | Monitoramento / observabilidade | 🟡 | [J5](#j5-observabilidade) |

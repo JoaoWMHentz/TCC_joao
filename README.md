@@ -43,9 +43,18 @@ RTAB-Map, o Nav2 e a interface não sabem em qual estão rodando.
 
 Documentação (também publicada na Wiki com `scripts/publish_wiki.sh`):
 
-- [docs/arquitetura.md](docs/arquitetura.md): fluxo de dados, TF, RTAB-Map, Nav2, interface e protocolo serial;
-- [docs/diagramas.md](docs/diagramas.md): requisitos (SysML), camadas IoT, C4, blocos (BDD/IBD), malhas de controle, máquinas de estado e segurança;
-- [docs/conformidade-portfolio.md](docs/conformidade-portfolio.md): requisitos do Portfólio e justificativas.
+| Documento | Conteúdo |
+|---|---|
+| [Como tudo funciona](docs/integracao.md) | o sistema de ponta a ponta: partida, um destino do clique à roda, exploração, simulação × robô |
+| [ROS 2](docs/ros2.md) | nós, tópicos, actions, QoS, TF, lifecycle e tempo simulado no projeto |
+| [SLAM com RTAB-Map](docs/slam-rtabmap.md) | grafo de poses, fechamento de loop por aparência, ICP, modos de mapeamento e localização |
+| [Navegação com Nav2](docs/navegacao-nav2.md) | behavior tree, costmaps, NavFn, Regulated Pure Pursuit, recuperações |
+| [Controle da base](docs/controle-base.md) | firmwares, protocolo serial, cinemática, odometria e segurança |
+| [Exploração autônoma](docs/exploracao.md) | as três estratégias: fronteiras, parede + BFS e desbaste em offsets |
+| [Arquitetura](docs/arquitetura.md) | camadas, fluxo de dados, TF, banco de dados, protocolo |
+| [Decisões de arquitetura](docs/decisoes-arquitetura.md) | ADRs: contexto, decisão, alternativas e consequências |
+| [Diagramas](docs/diagramas.md) | requisitos (SysML), camadas IoT, C4, BDD/IBD, malhas de controle, máquinas de estado |
+| [Conformidade com o Portfólio](docs/conformidade-portfolio.md) | requisitos do Portfólio e justificativas |
 
 | Pacote / pasta | Conteúdo |
 |---|---|
