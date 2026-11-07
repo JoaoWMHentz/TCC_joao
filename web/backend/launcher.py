@@ -32,6 +32,10 @@ log = logging.getLogger('launcher')
 MAP_NAME_RE = re.compile(r'^[A-Za-z0-9_-]{1,40}$')
 STOP_GRACE_S = {'slam': 60.0, 'explore': 5.0}
 DEFAULT_STOP_GRACE_S = 10.0
+# O Nav2 pode subir com os processos vivos mas os nós inativos (o
+# bt_navigator então recusa todo destino). Isso aparece no log como:
+NAV_BRINGUP_FAILED = 'Failed to bring up all requested nodes'
+NAV_MAX_RESTARTS = 2
 START_DELAY_S = 5.0  # espera a base publicar odom/TF antes do RTAB-Map
 
 
@@ -70,6 +74,10 @@ class Launcher:
         self.mode = 'idle'        # idle | starting | mapping | navigation | stopping
         self.map_name: str | None = None
         self.error: str | None = None
+        self._cmds: dict[str, str] = {}
+        self._nav_failed = False       # o Nav2 abortou a subida (ver NAV_BRINGUP_FAILED)
+        self._nav_restarts = 0
+        self._nav_restarting = False
         config.MAPS_DIR.mkdir(parents=True, exist_ok=True)
 
     # ── Consulta ─────────────────────────────────────────────────────────────
@@ -178,7 +186,8 @@ class Launcher:
         return True, 'iniciando'
 
     def _start_sequence(self, mode: str, db_path: str, explore: bool = False):
-        cmds = _commands(mode, db_path)
+        cmds = self._cmds = _commands(mode, db_path)
+        self._nav_failed, self._nav_restarts = False, 0
         try:
             self._spawn('base', cmds['base'])
             time.sleep(START_DELAY_S)
@@ -212,11 +221,38 @@ class Launcher:
     def watch(self):
         """Chamado periodicamente: detecta processos que morreram sozinhos."""
         if self.mode in ('mapping', 'navigation'):
+            if self._nav_restarting:
+                return
+            if self._nav_failed:
+                self._recover_nav()
+                return
             dead = [n for n in self.ORDER if not self.running(n)]
             if dead:
                 self.error = f'Processo encerrou inesperadamente: {", ".join(dead)}'
                 log.error(self.error)
                 threading.Thread(target=self.stop_session, daemon=True).start()
+
+    def _recover_nav(self):
+        """O Nav2 não ativou: reinicia só o processo nav (até NAV_MAX_RESTARTS)."""
+        self._nav_failed = False
+        if self._nav_restarts >= NAV_MAX_RESTARTS:
+            self.error = ('O Nav2 não conseguiu iniciar (destinos serão recusados); '
+                          'pare e abra o mapa de novo')
+            log.error(self.error)
+            return
+        self._nav_restarts += 1
+        self._nav_restarting = True
+        log.warning('Nav2 falhou ao ativar; reiniciando (tentativa %d)', self._nav_restarts)
+
+        def restart():
+            try:
+                self._stop('nav')
+                if self.mode in ('mapping', 'navigation'):
+                    self._spawn('nav', self._cmds['nav'])
+            finally:
+                self._nav_restarting = False
+
+        threading.Thread(target=restart, daemon=True).start()
 
     # ── Processos ────────────────────────────────────────────────────────────
 
@@ -237,6 +273,8 @@ class Launcher:
             line = raw.decode(errors='replace').rstrip()
             if line:
                 self._logs[name].append(line)
+                if name == 'nav' and NAV_BRINGUP_FAILED in line and proc is self._procs.get('nav'):
+                    self._nav_failed = True
         proc.stdout.close()
 
     def _stop(self, name: str):

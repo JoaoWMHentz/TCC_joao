@@ -132,15 +132,16 @@ def free_disk(grid: np.ndarray, center: tuple[int, int], radius_cells: int) -> n
 @dataclass
 class WallParams:
     side: str = 'right'           # lado em que a parede é mantida
-    wall_distance: float = 0.55   # m — distância desejada (medida do LiDAR)
-    front_clearance: float = 0.60 # m — obstáculo à frente: gira no lugar
-    wall_lost: float = 1.20       # m — além disso, não há parede do lado
-    linear_speed: float = 0.25    # m/s — em linha reta
+    wall_distance: float = 0.70   # m — distância desejada (medida do LiDAR)
+    front_clearance: float = 0.75 # m — obstáculo à frente: gira no lugar
+    wall_lost: float = 1.40       # m — além disso, não há parede do lado
+    linear_speed: float = 0.8     # m/s — em linha reta
     min_linear_speed: float = 0.12  # m/s — abaixo disso o BLDC trepida
     max_angular_speed: float = 0.8  # rad/s
     kp: float = 1.5               # ganho do erro de distância
     ka: float = 1.0               # ganho do erro de ângulo com a parede
     corner_turn_rate: float = 0.6 # rad/s — curva para contornar a quina
+    slow_zone: float = 1.0        # m — além de front_clearance, desacelera até o mínimo
 
 
 @dataclass
@@ -197,7 +198,7 @@ def wall_follow_command(view: ScanView, p: WallParams,
     if not wall_seen:
         if recently_had_wall:
             return p.min_linear_speed, s * p.corner_turn_rate, 'corner'
-        return p.linear_speed, 0.0, 'seek'
+        return p.linear_speed * _front_factor(view, p), 0.0, 'seek'
 
     dist_err = view.side - p.wall_distance            # > 0: longe demais
     # parede "abrindo" à frente (diagonal mais longe que o esperado) => virar para ela;
@@ -208,6 +209,12 @@ def wall_follow_command(view: ScanView, p: WallParams,
     w = max(-p.max_angular_speed, min(p.max_angular_speed, w))
     # reduz a velocidade nas curvas e com obstáculo se aproximando à frente
     slow_turn = 1.0 - 0.6 * abs(w) / p.max_angular_speed
-    slow_front = min(1.0, (view.front - p.front_clearance) / p.front_clearance + 0.3)
-    v = max(p.min_linear_speed, p.linear_speed * min(slow_turn, slow_front))
+    v = max(p.min_linear_speed, p.linear_speed * min(slow_turn, _front_factor(view, p)))
     return v, w, 'follow'
+
+
+def _front_factor(view: ScanView, p: WallParams) -> float:
+    """Fração da velocidade permitida pelo obstáculo à frente: 1 longe,
+    cai linearmente na slow_zone até o mínimo em front_clearance."""
+    k = (view.front - p.front_clearance) / max(p.slow_zone, 1e-3)
+    return max(p.min_linear_speed / p.linear_speed, min(1.0, k))

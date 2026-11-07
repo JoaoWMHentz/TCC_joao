@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { api } from '../api';
 
-const SPEED = { linear: 0.35, angular: 0.6 };
+const SPEED = { linear: 0.8, angular: 0.6 };
 type Dir = [number, number];
 
 // Setas de condução manual: enquanto o botão está pressionado, envia o comando

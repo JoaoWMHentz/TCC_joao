@@ -58,7 +58,7 @@ class HardwareNode(Node):
         p('imu_has_orientation', True)
         p('wheel_radius', 0.0825)
         p('wheel_separation', 0.310)
-        p('max_linear_speed', 0.5)        # m/s
+        p('max_linear_speed', 1.0)        # m/s
         p('max_angular_speed', 1.5)       # rad/s
         p('min_wheel_speed', 1.5)         # rad/s — abaixo disso o BLDC vibra
         p('wheel_deadband', 0.15)         # rad/s — abaixo disso = parado

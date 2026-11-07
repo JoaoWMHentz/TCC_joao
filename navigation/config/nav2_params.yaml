@@ -41,7 +41,7 @@ controller_server:
 
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
-      desired_linear_vel: 0.35
+      desired_linear_vel: 0.8
       lookahead_dist: 0.8
       min_lookahead_dist: 0.42
       max_lookahead_dist: 1.5
@@ -56,7 +56,7 @@ controller_server:
       regulated_linear_scaling_min_speed: 0.17
       use_cost_regulated_linear_velocity_scaling: false
       use_collision_detection: true
-      max_allowed_time_to_collision_up_to_carrot: 1.0
+      max_allowed_time_to_collision_up_to_carrot: 1.5   # ~1.2 m à frente a 0.8 m/s
       use_rotate_to_heading: true
       rotate_to_heading_angular_vel: 1.0
       rotate_to_heading_min_angle: 0.785
@@ -72,8 +72,9 @@ local_costmap:
       global_frame: odom
       robot_base_frame: base_link
       rolling_window: true
-      width: 3
-      height: 3
+      # 4 x 4 m: a 0.8 m/s o lookahead chega a ~1.2 m; sobra margem para ver o obstáculo
+      width: 4
+      height: 4
       resolution: 0.05
       # Corpo circular de raio 0.245 m deslocado 7.5 cm do eixo das rodas
       robot_radius: 0.33
@@ -106,8 +107,10 @@ local_costmap:
           observation_keep_time: 0.0
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        inflation_radius: 0.40
-        cost_scaling_factor: 3.0
+        # Zona de desvio: o custo cai até zero a 0.60 m do obstáculo; com o
+        # fator menor ele cai devagar, então o planejador passa mais longe das paredes
+        inflation_radius: 0.60
+        cost_scaling_factor: 2.0
       always_send_full_costmap: true
 
 global_costmap:
@@ -153,8 +156,10 @@ global_costmap:
           observation_keep_time: 0.0
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        inflation_radius: 0.40
-        cost_scaling_factor: 3.0
+        # Zona de desvio: o custo cai até zero a 0.60 m do obstáculo; com o
+        # fator menor ele cai devagar, então o planejador passa mais longe das paredes
+        inflation_radius: 0.60
+        cost_scaling_factor: 2.0
       always_send_full_costmap: true
 
 planner_server:
@@ -216,7 +221,7 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: false
     feedback: "OPEN_LOOP"
-    max_velocity: [0.35, 0.0, 1.2]
+    max_velocity: [0.8, 0.0, 1.2]
     min_velocity: [-0.05, 0.0, -1.2]
     max_accel: [0.5, 0.0, 2.0]
     max_decel: [-0.8, 0.0, -2.0]

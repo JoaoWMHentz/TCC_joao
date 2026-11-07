@@ -209,7 +209,7 @@ def initial_pose():
 @api.post('/teleop')
 def teleop():
     body = _body()
-    linear = max(-0.3, min(0.3, _number(body, 'linear', 0.0)))
+    linear = max(-0.8, min(0.8, _number(body, 'linear', 0.0)))
     angular = max(-1.0, min(1.0, _number(body, 'angular', 0.0)))
     if linear or angular:
         _take_control()

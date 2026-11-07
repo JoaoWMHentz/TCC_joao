@@ -37,11 +37,12 @@ wall_bfs_explorer:
     # ── Seguidor de parede (distâncias medidas do LiDAR, no centro do corpo;
     #    raio do corpo = 0.245 m) ──
     wall_side: right              # right | left — lado em que a parede fica
-    wall_distance: 0.55           # m — ~30 cm de folga entre o corpo e a parede
-    front_clearance: 0.60         # m — obstáculo à frente: gira no lugar
-    wall_lost_distance: 1.20      # m — além disso, considera que não há parede
+    wall_distance: 0.70           # m — ~45 cm de folga entre o corpo e a parede
+    front_clearance: 0.75         # m — obstáculo à frente (~50 cm do corpo): gira no lugar
+    wall_lost_distance: 1.40      # m — além disso, considera que não há parede
     corner_time: 4.0              # s — após perder a parede, curva para contornar a quina
-    linear_speed: 0.25            # m/s
+    linear_speed: 0.8             # m/s — em reta, longe de obstáculos
+    slow_zone: 1.0                # m — desacelera do linear_speed ao mínimo antes do front_clearance
     min_linear_speed: 0.12        # m/s — piso do BLDC (abaixo disso trepida)
     max_angular_speed: 0.8        # rad/s
     corner_turn_rate: 0.6         # rad/s

@@ -147,3 +147,17 @@ def test_scan_view_aplica_o_yaw_do_lidar():
     ranges[0] = 0.5                                 # ângulo -180° do LiDAR
     v1 = scan_view(ranges, angle_min, inc, 12.0, 'right', yaw_offset=math.pi)
     assert v1.front == 0.5 and v1.side == 12.0
+
+
+def test_desacelera_com_obstaculo_se_aproximando_a_frente():
+    d = P.wall_distance
+    def v_at(front):
+        return wall_follow_command(ScanView(front=front, side=d, side_front=d * math.sqrt(2),
+                                            other_side=5.0), P, True)[0]
+    assert math.isclose(v_at(P.front_clearance + P.slow_zone + 0.5), P.linear_speed)
+    assert v_at(P.front_clearance + P.slow_zone / 2) < P.linear_speed
+    assert math.isclose(v_at(P.front_clearance + 0.01), P.min_linear_speed)
+    # procurando parede em área aberta também desacelera
+    v_seek, _, st = wall_follow_command(ScanView(front=1.0, side=5.0, side_front=5.0,
+                                                 other_side=5.0), P, False)
+    assert st == 'seek' and P.min_linear_speed <= v_seek < P.linear_speed

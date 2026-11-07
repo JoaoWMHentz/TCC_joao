@@ -65,15 +65,16 @@ class WallBfsExplorer(Node):
         self.base_frame = p('robot_base_frame', 'base_link')
         self.wall = WallParams(
             side=p('wall_side', 'right'),
-            wall_distance=p('wall_distance', 0.55),
-            front_clearance=p('front_clearance', 0.60),
-            wall_lost=p('wall_lost_distance', 1.20),
-            linear_speed=p('linear_speed', 0.25),
+            wall_distance=p('wall_distance', 0.70),
+            front_clearance=p('front_clearance', 0.75),
+            wall_lost=p('wall_lost_distance', 1.40),
+            linear_speed=p('linear_speed', 0.8),
             min_linear_speed=p('min_linear_speed', 0.12),
             max_angular_speed=p('max_angular_speed', 0.8),
             kp=p('kp', 1.5),
             ka=p('ka', 1.0),
             corner_turn_rate=p('corner_turn_rate', 0.6),
+            slow_zone=p('slow_zone', 1.0),
         )
         self.corner_time = p('corner_time', 4.0)                  # s
         self.robot_radius = p('robot_radius', 0.33)               # m
