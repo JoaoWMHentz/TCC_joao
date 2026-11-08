@@ -24,18 +24,18 @@ Uso:
 import math
 import os
 
-import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (AppendEnvironmentVariable, DeclareLaunchArgument, ExecuteProcess,
                             IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler,
                             TimerAction)
-from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (Command, LaunchConfiguration, PathJoinSubstitution,
                                   PythonExpression)
 from launch_ros.actions import Node
+import yaml
 
 
 def generate_launch_description():
@@ -46,7 +46,8 @@ def generate_launch_description():
     # Só o servidor (-s), rodando (-r); a janela sobe à parte, depois do robô.
     # Sem janela, os sensores renderizam via EGL (--headless-rendering).
     gz_args = [world_file, ' -r -s -v 2',
-               PythonExpression(["'' if '", arg('gui'), "' == 'true' else ' --headless-rendering'"])]
+               PythonExpression(["'' if '", arg('gui'),
+                                 "' == 'true' else ' --headless-rendering'"])]
 
     # Malhas "package://description/..." resolvidas pelo Gazebo
     resource_path = AppendEnvironmentVariable(
@@ -78,7 +79,8 @@ def generate_launch_description():
                               description='Mundo: supermercado ou loja (sim/worlds/<world>.sdf)'),
         DeclareLaunchArgument('gui', default_value='true'),
         DeclareLaunchArgument('people', default_value='false',
-                              description='Adiciona pessoas caminhando (config/mundos/<world>.yaml)'),
+                              description='Adiciona pessoas caminhando '
+                                          '(config/mundos/<world>.yaml)'),
         # Vazio = posição de config/mundos/<world>.yaml
         DeclareLaunchArgument('spawn_x', default_value=''),
         DeclareLaunchArgument('spawn_y', default_value=''),

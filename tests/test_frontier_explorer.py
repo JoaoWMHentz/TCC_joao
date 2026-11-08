@@ -7,8 +7,8 @@ import pytest
 
 pytest.importorskip('rclpy')
 
+from action_msgs.msg import GoalStatus  # noqa: E402, I100
 import frontier_explorer as fe  # noqa: E402
-from action_msgs.msg import GoalStatus  # noqa: E402
 from ros_fakes import FakeActionClient, FakeFuture, make_map, room, set_tf  # noqa: E402
 
 OK, ABORTED, CANCELED = (GoalStatus.STATUS_SUCCEEDED, GoalStatus.STATUS_ABORTED,
@@ -194,7 +194,7 @@ def test_falha_ao_voltar_encerra(node):
     _ready(node, grid=room(60))
     for _ in range(fe.EMPTY_ROUNDS_TO_FINISH):
         node._tick()
-    node.nav.reject()                                     # recusa ao voltar não vai pra lista negra
+    node.nav.reject()                     # recusa ao voltar não vai pra lista negra
     assert node.blacklist == []
     node._send_goal(0.5, 1.5, 0.0, 'de novo')
     node.nav.accept().finish(ABORTED)

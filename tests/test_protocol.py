@@ -4,14 +4,13 @@ import math
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'hardware'))
 
 from hardware.protocol import (  # noqa: E402
-    STOP_COMMAND, WheelMapping, apply_wheel_floor, clamp, euler_to_quaternion,
-    format_velocity_command, integrate_pose, parse_imu_frame, parse_motor_frame,
-    twist_to_wheels, wheels_to_twist)
+    apply_wheel_floor, clamp, euler_to_quaternion, format_velocity_command,
+    integrate_pose, parse_imu_frame, parse_motor_frame, STOP_COMMAND,
+    twist_to_wheels, WheelMapping, wheels_to_twist)
+import pytest  # noqa: E402
 
 R, L = 0.0825, 0.310
 
@@ -20,7 +19,8 @@ R, L = 0.0825, 0.310
 
 def test_motor_frame_valid():
     f = parse_motor_frame('M 1.5000 -2.2500 10.0 -3.5 R')
-    assert (f.vel_left, f.vel_right, f.pos_left, f.pos_right, f.flag) == (1.5, -2.25, 10.0, -3.5, 'R')
+    assert ((f.vel_left, f.vel_right, f.pos_left, f.pos_right, f.flag)
+            == (1.5, -2.25, 10.0, -3.5, 'R'))
 
 
 @pytest.mark.parametrize('line', [

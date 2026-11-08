@@ -3,19 +3,18 @@
 import os
 import sys
 
-import numpy as np
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'navigation', 'scripts'))
 
 from frontiers import (  # noqa: E402
     find_frontiers, frontier_mask, goal_candidates, min_distance)
+import numpy as np  # noqa: E402
 
-U, F, O = -1, 0, 100   # desconhecido, livre, ocupado
+U, F, OCC = -1, 0, 100   # desconhecido, livre, ocupado
 
 
 def test_mapa_todo_conhecido_nao_tem_fronteira():
     grid = np.full((20, 20), F)
-    grid[0, :] = grid[-1, :] = grid[:, 0] = grid[:, -1] = O
+    grid[0, :] = grid[-1, :] = grid[:, 0] = grid[:, -1] = OCC
     assert find_frontiers(grid, 0.05, (0.0, 0.0), min_size=1) == []
 
 
@@ -34,12 +33,12 @@ def test_fronteira_e_a_coluna_livre_vizinha_do_desconhecido():
 def test_ocupado_vizinho_do_desconhecido_nao_e_fronteira():
     grid = np.full((10, 10), U)
     grid[:, :5] = F
-    grid[:, 4] = O                       # parede separando livre e desconhecido
+    grid[:, 4] = OCC                       # parede separando livre e desconhecido
     assert not frontier_mask(grid).any()
 
 
 def test_agrupamentos_separados_e_tamanho_minimo():
-    grid = np.full((30, 30), O)
+    grid = np.full((30, 30), OCC)
     grid[1:29, 1:29] = F
     grid[1:11, 29] = U                   # fronteira de 10 células (borda leste)
     grid[29, 5:8] = U                    # fronteira de 3 células (borda norte)

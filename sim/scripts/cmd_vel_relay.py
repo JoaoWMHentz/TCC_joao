@@ -7,8 +7,8 @@ Reproduz na simulação a proteção do hardware_node real: sem comando novo por
 manteria o último comando indefinidamente.
 """
 
-import rclpy
 from geometry_msgs.msg import Twist
+import rclpy
 from rclpy.clock import Clock
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node

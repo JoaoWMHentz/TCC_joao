@@ -40,15 +40,15 @@ import signal
 import sys
 import time
 
-import numpy as np
-import rclpy
 from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import PoseStamped
 from nav2_msgs.action import NavigateThroughPoses
+import numpy as np
+from pocket import (cell_to_world, find_outer_corners, is_outer_loop, path_length, plan_pass,
+                    rasterize_path, region_contours, remaining_region, resample, world_to_cell)
+import rclpy
 from rclpy.action import ActionClient
 from rclpy.signals import SignalHandlerOptions
-from pocket import (cell_to_world, find_outer_corners, is_outer_loop, path_length, plan_pass, rasterize_path,
-                    region_contours, remaining_region, resample, world_to_cell)
 from wall_bfs import traversable_mask
 from wall_bfs_explorer import BFS_GOAL, DONE, WALL, WallBfsExplorer
 
@@ -63,7 +63,7 @@ class PocketExplorer(WallBfsExplorer):
         super().__init__('pocket_explorer')
         p = lambda name, default: self.declare_parameter(name, default).value  # noqa: E731
         self.level_spacing = p('level_spacing', 1.5)          # m — stepover entre passes
-        self.pass_clearance = p('pass_clearance', 0.6)        # m — folga de obstáculos/desconhecido
+        self.pass_clearance = p('pass_clearance', 0.6)        # m — folga obstáculo/desconhecido
         self.waypoint_spacing = p('waypoint_spacing', 1.0)    # m — entre pontos do passe
         self.min_pass_length = p('min_pass_length', 2.0)      # m — contornos menores: ignora
         self.min_region_area = p('min_region_area', 1.0)      # m² — sobras menores: ignora
@@ -75,7 +75,7 @@ class PocketExplorer(WallBfsExplorer):
         self.corner_approx_eps = p('corner_approx_eps', 0.25)      # m — Douglas-Peucker
         self.corner_hull_tol = p('corner_hull_tolerance', 0.6)     # m — até o fecho convexo
         self.corner_backing = p('corner_wall_backing', 0.7)        # fração com parede atrás
-        self.corner_search_attempts = p('corner_search_attempts', 4)  # revelar mapa e tentar de novo
+        self.corner_search_attempts = p('corner_search_attempts', 4)  # revela mapa e tenta de novo
         self.corner_skip_radius = p('corner_skip_radius', 1.5)     # m — canto já tentado
 
         self.passes = ActionClient(self, NavigateThroughPoses, 'navigate_through_poses')
@@ -144,7 +144,8 @@ class PocketExplorer(WallBfsExplorer):
             self._seek_outer_corner(pose)
             return
         if closed:
-            self.get_logger().info(f'Contorno fechado ({self.seg_travel:.1f} m); iniciando os passes')
+            self.get_logger().info(
+                f'Contorno fechado ({self.seg_travel:.1f} m); iniciando os passes')
         else:
             self.get_logger().info(f'Contorno encerrado ({why}); iniciando os passes')
         self.contour_done = True
@@ -168,7 +169,8 @@ class PocketExplorer(WallBfsExplorer):
             (cx, cy), (ax, ay), yaw, walls = target
             self.corner, self.phase, self.state = (cx, cy), 'corner', BFS_GOAL
             self._send_goal(ax, ay, yaw, f'Canto da parede externa em ({cx:.1f}, {cy:.1f}), '
-                                         f'paredes de {walls[0]:.1f} m e {walls[1]:.1f} m; indo até ele')
+                                         f'paredes de {walls[0]:.1f} m e {walls[1]:.1f} m; '
+                                         'indo até ele')
             return
         self.corner_tries += 1
         if self.corner_tries <= self.corner_search_attempts:
@@ -185,8 +187,10 @@ class PocketExplorer(WallBfsExplorer):
         self._start_wall(pose, time.monotonic())
 
     def _outer_corner(self, pose):
-        """((x, y) do canto, (x, y) de chegada, yaw, paredes) do canto externo
-        mais próximo do robô com ponto de chegada livre, ou None."""
+        """Canto externo mais próximo do robô com ponto de chegada livre.
+
+        Retorna ((x, y) do canto, (x, y) de chegada, yaw, paredes), ou None.
+        """
         m = self.map
         if m is None:
             return None
@@ -233,9 +237,12 @@ class PocketExplorer(WallBfsExplorer):
         super()._goal_failed(why)
 
     def _wall_exhausted(self, pose, now, moved_at):
-        """No contorno externo só para ao fechar a volta (voltar a caminho já
+        """Decide se o contorno externo acabou.
+
+        No contorno externo só para ao fechar a volta (voltar a caminho já
         percorrido), travar ou estourar o tempo: o mapa já pode ter sido visto
-        do canto, então "não cresceu" não quer dizer que a parede acabou."""
+        do canto, então "não cresceu" não quer dizer que a parede acabou.
+        """
         why = self._revisiting(pose)
         if why:
             return why

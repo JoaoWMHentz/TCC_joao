@@ -6,9 +6,9 @@ import pytest
 
 pytest.importorskip('rclpy')
 
-import wall_bfs_explorer as wbe  # noqa: E402
-from action_msgs.msg import GoalStatus  # noqa: E402
+from action_msgs.msg import GoalStatus  # noqa: E402, I100
 from ros_fakes import FakeActionClient, make_map, make_scan, room, set_tf  # noqa: E402
+import wall_bfs_explorer as wbe  # noqa: E402
 from wall_bfs_explorer import BFS_GOAL, DONE, RETURNING, WAIT, WALL  # noqa: E402
 
 OK, ABORTED, CANCELED = (GoalStatus.STATUS_SUCCEEDED, GoalStatus.STATUS_ABORTED,
@@ -51,7 +51,7 @@ def _no_pose(node):
 
 
 def test_yaw_of():
-    q = type('Q', (), dict(x=0.0, y=0.0, z=math.sin(0.3), w=math.cos(0.3)))
+    q = type('Q', (), {'x': 0.0, 'y': 0.0, 'z': math.sin(0.3), 'w': math.cos(0.3)})
     assert wbe.yaw_of(q) == pytest.approx(0.6)
 
 

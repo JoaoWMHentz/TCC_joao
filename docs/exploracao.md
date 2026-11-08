@@ -326,6 +326,25 @@ Para comparar as estratégias no mesmo mundo simulado, observam-se o tempo até
 o fim da exploração, a distância percorrida e a área conhecida do mapa final
 (registrados nos logs do explorador e no `.db` do RTAB-Map).
 
+## 6. Registro de decisões
+
+Os três exploradores registram em log **cada mudança de comportamento e o
+motivo**. Exemplos:
+
+- "Seguindo a parede (right)";
+- "Parede: <motivo>; buscando fronteira (BFS)";
+- "Destino (x, y) descartado: <motivo>";
+- "Nível 2: passe de 14.3 m ...";
+- "Exploração concluída: nenhuma fronteira alcançável".
+
+O backend lê essas linhas da saída do processo `explore`
+(`GET /api/explore/log`, ver [api.md](api.md)). A interface mostra a lista no
+painel **Decisões da exploração**, atualizada a cada segundo, durante e depois
+da exploração, até a sessão terminar. O registro mostra por que o robô fez
+cada movimento, o que facilita depurar e comparar as estratégias. Pela linha de
+comando, as mesmas mensagens aparecem no terminal do `explore.launch.py` e em
+`/rosout`.
+
 ## Referências
 
 - B. Yamauchi. *A frontier-based approach for autonomous exploration*.

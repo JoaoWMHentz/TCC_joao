@@ -15,7 +15,8 @@ for sub in (('navigation', 'scripts'), ('hardware',)):
 @pytest.fixture(scope='session')
 def ros():
     """Contexto do rclpy para os testes que criam nós (pula sem ROS 2)."""
-    rclpy = pytest.importorskip('rclpy', reason='ROS 2 não carregado (source /opt/ros/<distro>/setup.bash)')
+    rclpy = pytest.importorskip(
+        'rclpy', reason='ROS 2 não carregado (source /opt/ros/<distro>/setup.bash)')
     rclpy.init()
     yield rclpy
     rclpy.try_shutdown()

@@ -1,5 +1,7 @@
 # Mapeamento, localização e gestão de rotas para robô móvel em ambiente comercial
 
+[![CI](https://github.com/JoaoWMHentz/TCC_joao/actions/workflows/ci.yml/badge.svg)](https://github.com/JoaoWMHentz/TCC_joao/actions/workflows/ci.yml)
+
 Software do Trabalho de Conclusão de Curso de Engenharia de Software (Católica
 de Santa Catarina) de João Witor Müller Hentz.
 
@@ -53,8 +55,12 @@ Documentação (também publicada na Wiki com `scripts/publish_wiki.sh`):
 | [Exploração autônoma](docs/exploracao.md) | as três estratégias: fronteiras, parede + BFS e desbaste em offsets |
 | [Arquitetura](docs/arquitetura.md) | camadas, fluxo de dados, TF, banco de dados, protocolo |
 | [Decisões de arquitetura](docs/decisoes-arquitetura.md) | ADRs: contexto, decisão, alternativas e consequências |
+| [API](docs/api.md) | rotas REST, eventos Socket.IO e equivalentes pela linha de comando |
+| [Experiência do usuário](docs/ux.md) | perfis, jornadas, fluxo de telas, decisões de interação e acessibilidade |
 | [Diagramas](docs/diagramas.md) | requisitos (SysML), camadas IoT, C4, BDD/IBD, malhas de controle, máquinas de estado |
 | [Conformidade com o Portfólio](docs/conformidade-portfolio.md) | requisitos do Portfólio e justificativas |
+| [Como contribuir](CONTRIBUTING.md) | ambiente, guia de estilo, testes, issues e pull requests |
+| [Código de conduta](CODE_OF_CONDUCT.md) | regras de convivência no projeto |
 
 | Pacote / pasta | Conteúdo |
 |---|---|
@@ -206,5 +212,11 @@ ros2 run hardware hardware_node --ros-args -p motor_port:=<MOTOR> -p imu_port:=<
 
 ```bash
 tests/run_tests.sh                            # testes + cobertura (carrega o ROS 2 sozinho)
-cd web/frontend && npm run typecheck          # tipos do frontend
+scripts/lint.sh                               # guia de estilo: ament_flake8 (Python) + tsc (interface)
 ```
+
+Os dois rodam também no GitHub Actions a cada push e pull request
+([.github/workflows/ci.yml](.github/workflows/ci.yml)), junto com o build da
+interface. Na `main`, com tudo verde, a Wiki é regerada a partir de `docs/`.
+
+Para contribuir, veja [CONTRIBUTING.md](CONTRIBUTING.md).

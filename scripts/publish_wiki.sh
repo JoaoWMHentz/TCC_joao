@@ -12,6 +12,9 @@
 #
 # Uso: scripts/publish_wiki.sh [--dry-run]
 #   --dry-run  gera as páginas numa pasta temporária e mostra o diff, sem enviar
+#
+# No GitHub Actions (.github/workflows/ci.yml) o script roda a cada push na
+# main, autenticado pela variável WIKI_TOKEN (o GITHUB_TOKEN do workflow).
 set -eo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,6 +36,8 @@ declare -A PAGES=(
     [exploracao.md]=Exploracao-Autonoma
     [arquitetura.md]=Arquitetura
     [decisoes-arquitetura.md]=Decisoes-de-Arquitetura
+    [api.md]=API
+    [ux.md]=Experiencia-do-Usuario
     [diagramas.md]=Diagramas
     [conformidade-portfolio.md]=Conformidade-Portfolio
 )
@@ -40,8 +45,13 @@ declare -A PAGES=(
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
+CLONE_URL="$WIKI_URL"
+if [ -n "${WIKI_TOKEN:-}" ]; then
+    CLONE_URL="https://x-access-token:${WIKI_TOKEN}@github.com/${SLUG}.wiki.git"
+fi
+
 echo "[wiki] clonando $WIKI_URL"
-if ! git clone -q "$WIKI_URL" "$WORK/wiki"; then
+if ! git clone -q "$CLONE_URL" "$WORK/wiki"; then
     echo "Erro: a Wiki ainda não existe. Crie a primeira página pela aba Wiki do GitHub." >&2
     exit 1
 fi
@@ -58,9 +68,12 @@ rewrite() {
         expr+="s#\]\(\.\./([^)]*/)\)#](${TREE}/\1)#g;"   # pasta
         expr+="s#\]\(\.\./([^)]*)\)#](${BLOB}/\1)#g;"    # arquivo
     else
-        # README na raiz: caminhos relativos que não começam com http/#/docs
-        expr+="s#\]\(((LICENSE|[a-z_]+/)[^)]*/)\)#](${TREE}/\1)#g;"
-        expr+="s#\]\(((LICENSE|[a-z_]+/)[^)]*)\)#](${BLOB}/\1)#g;"
+        # README e CONTRIBUTING na raiz: caminhos relativos que não começam com http/#/docs
+        expr+="s#\]\(CONTRIBUTING\.md\)#](Como-Contribuir)#g;"
+        expr+="s#\]\(README\.md\)#](Home)#g;"
+        expr+="s#\]\((CODE_OF_CONDUCT\.md)\)#](${BLOB}/\1)#g;"
+        expr+="s#\]\(((LICENSE|\.?[a-z_]+/)[^)]*/)\)#](${TREE}/\1)#g;"
+        expr+="s#\]\(((LICENSE|\.?[a-z_]+/)[^)]*)\)#](${BLOB}/\1)#g;"
     fi
     sed -E "$expr" "$file"
 }
@@ -69,6 +82,7 @@ for src in "${!PAGES[@]}"; do
     rewrite "$ROOT/docs/$src" docs > "$WORK/wiki/${PAGES[$src]}.md"
 done
 rewrite "$ROOT/README.md" . > "$WORK/wiki/Home.md"
+rewrite "$ROOT/CONTRIBUTING.md" . > "$WORK/wiki/Como-Contribuir.md"
 
 cat > "$WORK/wiki/_Sidebar.md" <<'EOF'
 **Documentação**
@@ -90,9 +104,15 @@ cat > "$WORK/wiki/_Sidebar.md" <<'EOF'
 - [Decisões (ADRs)](Decisoes-de-Arquitetura)
 - [Diagramas](Diagramas)
 
+**Uso**
+
+- [Experiência do usuário](Experiencia-do-Usuario)
+- [API](API)
+
 **Portfólio**
 
 - [Conformidade e justificativas](Conformidade-Portfolio)
+- [Como contribuir](Como-Contribuir)
 EOF
 
 cd "$WORK/wiki"
@@ -105,6 +125,10 @@ git --no-pager diff --cached --stat
 if [ "$DRY_RUN" = 1 ]; then
     echo "[wiki] --dry-run: páginas geradas, nada enviado."
     exit 0
+fi
+if ! git config user.email >/dev/null; then   # executor de CI sem identidade
+    git config user.name "github-actions[bot]"
+    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 fi
 git commit -q -m "docs: atualiza a Wiki a partir de docs/ ($(git -C "$ROOT" rev-parse --short HEAD))"
 git push -q

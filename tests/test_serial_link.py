@@ -2,17 +2,18 @@
 
 import math
 
-import pytest
-import serial
-
 from hardware import serial_link
 from hardware.serial_link import SerialLink
+import pytest
 from ros_fakes import FakeLogger
+import serial
 
 
 class FakeSerial:
     """serial.Serial falso: `script` é a sequência de leituras (bytes ou exceção).
-    Quando o script acaba, chama `on_empty` (os testes param o enlace ali)."""
+
+    Quando o script acaba, chama `on_empty` (os testes param o enlace ali).
+    """
 
     script: list = []
     open_errors = 0          # quantas aberturas seguidas falham
@@ -29,7 +30,7 @@ class FakeSerial:
         self.fail_close = False
         FakeSerial.instances.append(self)
 
-    def open(self):
+    def open(self):  # noqa: A003
         if FakeSerial.open_errors > 0:
             FakeSerial.open_errors -= 1
             raise serial.SerialException('sem porta')

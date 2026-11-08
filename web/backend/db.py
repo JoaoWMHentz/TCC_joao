@@ -11,10 +11,9 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
+import config
 import psycopg2
 from psycopg2.extras import Json, RealDictCursor
-
-import config
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS points (
@@ -105,8 +104,10 @@ def delete_point(point_id: int) -> bool:
 
 
 def delete_map_data(map_name: str) -> None:
-    """Remove os destinos e as rotas de um mapa excluído. O histórico de
-    navegação fica (é registro do que aconteceu)."""
+    """Remove os destinos e as rotas de um mapa excluído.
+
+    O histórico de navegação fica (é registro do que aconteceu).
+    """
     with cursor() as cur:
         cur.execute('DELETE FROM routes WHERE map = %s', (map_name,))
         cur.execute('DELETE FROM points WHERE map = %s', (map_name,))

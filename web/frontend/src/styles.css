@@ -138,3 +138,13 @@ input, select {
   .map-view { height: 60vh; flex: none; }
   .sidebar { border-left: none; padding: 0 12px 12px; }
 }
+
+/* Decisões do explorador autônomo */
+.panel h2 .count { color: var(--muted); font-weight: normal; font-size: 13px; }
+.explore-log { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; font-size: 13px; }
+.explore-log li { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.explore-log li:last-child { border-bottom: none; }
+.explore-log li:first-child:not(.hint) { font-weight: 600; }
+.explore-log time { color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.explore-log .level-warn span { color: var(--warn); }
+.explore-log .level-error span, .explore-log .level-fatal span { color: var(--danger); }

@@ -1,0 +1,93 @@
+# Integração contínua do repositório público.
+#
+# Roda os mesmos scripts usados localmente (scripts/lint.sh e
+# tests/run_tests.sh), então o que passa na máquina do desenvolvedor passa
+# aqui. Os testes usam dublês de Nav2, TF e serial: não precisam de Gazebo nem
+# do robô. A entrega no robô continua no pipeline privado da empresa
+# (docs/conformidade-portfolio.md, J3).
+#
+# Entrega contínua daqui: a documentação. A cada push na main com tudo verde,
+# a Wiki é regerada a partir de docs/ (scripts/publish_wiki.sh).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Estilo e testes (ROS 2 Jazzy)
+    runs-on: ubuntu-24.04
+    container: ros:jazzy-ros-base
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Dependências
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ros-jazzy-nav2-msgs ros-jazzy-ament-flake8 \
+            python3-pytest python3-pytest-cov python3-numpy python3-scipy \
+            python3-opencv python3-serial
+
+      - uses: actions/checkout@v4
+
+      - name: Marcar o repositório como seguro (contêiner roda como root)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Guia de estilo (ament_flake8)
+        run: scripts/lint.sh
+
+      - name: Testes e cobertura (mínimo 80%)
+        run: |
+          tests/run_tests.sh --cov-report=xml:coverage.xml | tee pytest.log
+          {
+            echo '### Cobertura'
+            echo '```'
+            grep -E '^(TOTAL|Required|[0-9]+ passed)' pytest.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cobertura
+          path: coverage.xml
+
+  frontend:
+    name: Interface (tipos e build)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build          # tsc -b && vite build
+
+  wiki:
+    name: Publicar a Wiki
+    needs: [python, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write               # o push na Wiki usa o GITHUB_TOKEN
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/publish_wiki.sh
+        env:
+          WIKI_TOKEN: ${{ secrets.GITHUB_TOKEN }}

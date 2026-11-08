@@ -10,7 +10,7 @@ import pytest
 
 pytest.importorskip('rclpy')
 
-from diagnostic_msgs.msg import DiagnosticStatus  # noqa: E402
+from diagnostic_msgs.msg import DiagnosticStatus  # noqa: E402, I100
 from geometry_msgs.msg import Twist  # noqa: E402
 
 from hardware import hardware_node as hw  # noqa: E402
@@ -71,7 +71,8 @@ def test_inicia_os_dois_enlaces(node):
 
 def test_quaternion():
     q = hw._quaternion(0.0, 0.0, math.pi / 2)
-    assert q.z == pytest.approx(math.sin(math.pi / 4)) and q.w == pytest.approx(math.cos(math.pi / 4))
+    assert q.z == pytest.approx(math.sin(math.pi / 4))
+    assert q.w == pytest.approx(math.cos(math.pi / 4))
 
 
 # ── Serial dos motores / IMU ─────────────────────────────────────────────────

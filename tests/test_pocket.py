@@ -9,10 +9,10 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'navigation', 'scripts'))
 
 from pocket import (  # noqa: E402
-    cell_to_world, find_outer_corners, is_outer_loop, known_silhouette, path_length, plan_pass, rasterize_path, region_contours,
-    remaining_region, resample, signed_area, world_to_cell)
+    cell_to_world, find_outer_corners, is_outer_loop, known_silhouette, path_length, plan_pass,
+    rasterize_path, region_contours, remaining_region, resample, signed_area, world_to_cell)
 
-U, F, O = -1, 0, 100   # desconhecido, livre, ocupado
+U, F, OCC = -1, 0, 100   # desconhecido, livre, ocupado
 RES = 0.1
 ORIGIN = (0.0, 0.0)
 
@@ -20,10 +20,10 @@ ORIGIN = (0.0, 0.0)
 def _sala(n=100, ilha=None):
     """Sala n x n células (10 x 10 m) com parede em volta; ilha = (r0, r1, c0, c1)."""
     grid = np.full((n, n), F)
-    grid[0, :] = grid[-1, :] = grid[:, 0] = grid[:, -1] = O
+    grid[0, :] = grid[-1, :] = grid[:, 0] = grid[:, -1] = OCC
     if ilha:
         r0, r1, c0, c1 = ilha
-        grid[r0:r1, c0:c1] = O
+        grid[r0:r1, c0:c1] = OCC
     return grid
 
 
@@ -43,7 +43,8 @@ def _densifica(pts, passo=0.05):
     out = [pts[0]]
     for a, b in zip(pts, pts[1:]):
         n = max(1, int(math.dist(a, b) / passo))
-        out += [(a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n) for i in range(1, n + 1)]
+        out += [(a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n)
+                for i in range(1, n + 1)]
     return out
 
 
@@ -125,12 +126,15 @@ def test_passe_comeca_perto_do_robo_e_deixa_o_feito_a_direita():
     # com a parede à direita, o passe interno também é anti-horário
     xy = [(c, r) for r, c in linha]
     assert signed_area(xy) > 0
-    assert signed_area([(c, r) for r, c in plan_pass(region_contours(reg, 20), reg, robo, 'left')]) < 0
+    passe_esq = plan_pass(region_contours(reg, 20), reg, robo, 'left')
+    assert signed_area([(c, r) for r, c in passe_esq]) < 0
 
 
 def test_desbaste_completo_vai_em_niveis_ate_o_centro():
     """Simula: contorno externo e depois cada passe vira caminho percorrido.
-    Cada nível fica mais para dentro e o desbaste termina."""
+
+    Cada nível fica mais para dentro e o desbaste termina.
+    """
     grid = _sala()
     caminho = _retangulo(0.8, 0.8, 9.2, 9.2)
     robo = (8, 8)
@@ -173,12 +177,14 @@ def test_pontos_bloqueados_saem_da_regiao():
 # ── Borda externa por visão computacional ────────────────────────────────────
 
 def _supermercado(desconhecido_a_partir_da_coluna=None):
-    """20 x 14 m com parede em volta e 6 gôndolas de 8 m (ocupadas por fora,
-    desconhecidas por dentro, como o LiDAR as vê)."""
+    """Supermercado de 20 x 14 m com parede em volta e 6 gôndolas de 8 m.
+
+    Gôndolas ocupadas por fora e desconhecidas por dentro, como o LiDAR as vê.
+    """
     g = np.full((140, 200), F)
-    g[0, :] = g[-1, :] = g[:, 0] = g[:, -1] = O
+    g[0, :] = g[-1, :] = g[:, 0] = g[:, -1] = OCC
     for c0 in range(30, 180, 25):
-        g[30:110, c0:c0 + 8] = O
+        g[30:110, c0:c0 + 8] = OCC
         g[33:107, c0 + 2:c0 + 6] = U
     if desconhecido_a_partir_da_coluna is not None:
         g[:, desconhecido_a_partir_da_coluna:] = U
@@ -216,7 +222,7 @@ def test_borda_com_o_desconhecido_nao_e_parede():
 
 
 def test_sala_em_l_acha_os_cantos_convexos_e_nao_o_reentrante():
-    g = np.full((100, 100), O)
+    g = np.full((100, 100), OCC)
     g[1:40, 1:99] = F                     # braço de baixo
     g[1:99, 1:40] = F                     # braço da esquerda
     cantos = find_outer_corners(g, RES)

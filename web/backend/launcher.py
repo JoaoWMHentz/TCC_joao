@@ -16,6 +16,7 @@ o slam tem uma espera longa antes de escalar para SIGTERM/SIGKILL.
 
 from __future__ import annotations
 
+from collections import deque
 import logging
 import os
 import re
@@ -23,7 +24,6 @@ import signal
 import subprocess
 import threading
 import time
-from collections import deque
 
 import config
 
@@ -62,8 +62,10 @@ def _commands(mode: str, db_path: str, strategy: str = DEFAULT_STRATEGY) -> dict
     }
 
 
-# "[INFO] [1712345.678] [frontier_explorer]: mensagem" -> "mensagem"
-LOG_MSG_RE = re.compile(r'\[[A-Z]+\] \[[\d.]+\] \[[^\]]+\]: (.*)$')
+# "[INFO] [1712345.678] [frontier_explorer]: mensagem" -> nível, instante, mensagem
+# (o instante do log do ROS é sempre o relógio do sistema, mesmo com use_sim_time)
+LOG_MSG_RE = re.compile(r'\[([A-Z]+)\] \[([\d.]+)\] \[[^\]]+\]: (.*)$')
+EXPLORE_LOG_MAX = 100
 
 
 class Launcher:
@@ -74,7 +76,7 @@ class Launcher:
         self._lock = threading.Lock()
         self._procs: dict[str, subprocess.Popen] = {}
         self._logs: dict[str, deque] = {name: deque(maxlen=300)
-                                         for name in (*self.ORDER, 'explore')}
+                                        for name in (*self.ORDER, 'explore')}
         self.mode = 'idle'        # idle | starting | mapping | navigation | stopping
         self.map_name: str | None = None
         self.error: str | None = None
@@ -132,14 +134,27 @@ class Launcher:
     # ── Exploração automática (só durante o mapeamento) ─────────────────────
 
     def explore_status(self) -> dict:
-        message = None
-        for line in reversed(self._logs['explore']):
+        log = self.explore_log(limit=1)
+        return {'running': self.running('explore'),
+                'message': log[0]['text'] if log else None,
+                'strategy': self.explore_strategy}
+
+    def explore_log(self, limit: int = EXPLORE_LOG_MAX) -> list[dict]:
+        """Decisões do explorador desta sessão, da mais antiga para a mais nova.
+
+        Cada explorador registra em log o motivo de cada mudança de
+        comportamento (seguir a parede, ir a uma fronteira, descartar um
+        destino, iniciar um passe); aqui as linhas viram {t, level, text}.
+        """
+        # cópia antes de percorrer: a thread _pump acrescenta linhas ao mesmo tempo
+        lines = list(self._logs['explore'])
+        entries = []
+        for line in lines:
             m = LOG_MSG_RE.search(line)
             if m:
-                message = m.group(1)
-                break
-        return {'running': self.running('explore'), 'message': message,
-                'strategy': self.explore_strategy}
+                entries.append({'t': float(m.group(2)), 'level': m.group(1).lower(),
+                                'text': m.group(3)})
+        return entries[-limit:] if limit > 0 else []
 
     def start_explore(self, strategy: str = DEFAULT_STRATEGY) -> tuple[bool, str]:
         if strategy not in EXPLORE_STRATEGIES:
@@ -155,8 +170,11 @@ class Launcher:
         return True, 'exploração iniciada'
 
     def stop_explore(self, wait: bool = False) -> None:
-        """Encerra o explorador. O SIGINT sai na hora (ele cancela o destino no
-        Nav2 e para de mandar outros); a espera/escalada fica em segundo plano."""
+        """Encerra o explorador.
+
+        O SIGINT sai na hora (ele cancela o destino no Nav2 e para de mandar
+        outros); a espera/escalada fica em segundo plano.
+        """
         proc = self._procs.get('explore')
         if proc is None or proc.poll() is not None:
             return
@@ -173,8 +191,11 @@ class Launcher:
 
     def start_session(self, mode: str, name: str, explore: bool = False,
                       strategy: str = DEFAULT_STRATEGY) -> tuple[bool, str]:
-        """explore=True (só no mapeamento): inicia a exploração automática,
-        com a estratégia dada, assim que a pilha estiver no ar."""
+        """Inicia uma sessão de mapeamento ou navegação.
+
+        explore=True (só no mapeamento): inicia a exploração automática, com a
+        estratégia dada, assim que a pilha estiver no ar.
+        """
         if mode not in ('mapping', 'navigation'):
             return False, 'modo inválido'
         if strategy not in EXPLORE_STRATEGIES:
@@ -192,6 +213,7 @@ class Launcher:
             if self.mode != 'idle':
                 return False, 'Já existe uma sessão ativa; pare antes de iniciar outra'
             self.mode, self.map_name, self.error = 'starting', name, None
+            self._logs['explore'].clear()   # decisões da sessão anterior não valem mais
 
         threading.Thread(target=self._start_sequence, args=(mode, str(path), explore, strategy),
                          daemon=True).start()

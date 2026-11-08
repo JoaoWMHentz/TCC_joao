@@ -61,7 +61,8 @@ def generate_launch_description():
                               default_value=os.path.join(pkg, 'config', 'nav2_params.yaml')),
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         DeclareLaunchArgument('allow_unknown', default_value='false',
-                              description='Planejar por espaço desconhecido (true durante o mapeamento)'),
+                              description='Planejar por espaço desconhecido '
+                                          '(true durante o mapeamento)'),
         DeclareLaunchArgument('activation_delay', default_value='3.0',
                               description='Espera (s) antes de ativar os nós (ver docstring)'),
 

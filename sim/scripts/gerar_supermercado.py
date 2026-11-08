@@ -35,8 +35,8 @@ Uso:
 
 import argparse
 import math
-import random
 from pathlib import Path
+import random
 
 RNG = random.Random(2026)
 
@@ -103,7 +103,8 @@ class Model:
         if shape == 'box':
             return f'<box><size>{size[0]:.3f} {size[1]:.3f} {size[2]:.3f}</size></box>'
         if shape == 'cyl':
-            return f'<cylinder><radius>{size[0]:.3f}</radius><length>{size[1]:.3f}</length></cylinder>'
+            return (f'<cylinder><radius>{size[0]:.3f}</radius>'
+                    f'<length>{size[1]:.3f}</length></cylinder>')
         if shape == 'sphere':
             return f'<sphere><radius>{size[0]:.3f}</radius></sphere>'
         raise ValueError(shape)
@@ -120,7 +121,8 @@ class Model:
 
     def collision(self, shape, pos, size):
         self.parts.append(
-            f'<collision name="{self._id("c")}"><pose>{pos[0]:.3f} {pos[1]:.3f} {pos[2]:.3f} 0 0 0</pose>'
+            f'<collision name="{self._id("c")}">'
+            f'<pose>{pos[0]:.3f} {pos[1]:.3f} {pos[2]:.3f} 0 0 0</pose>'
             f'<geometry>{self._geom(shape, size)}</geometry></collision>')
 
     def solid(self, pos, size, rgb, **kw):
@@ -219,7 +221,7 @@ def checkout(name, x, yc, n):
     m.visual('cyl', (0.25, -0.75, 1.1), (0.025, 0.4), METAL_ESCURO)              # monitor
     m.visual('box', (0.25, -0.75, 1.38), (0.04, 0.32, 0.22), METAL_ESCURO)
     m.visual('box', (0.23, -0.75, 1.38), (0.005, 0.28, 0.18), (0.2, 0.5, 0.9), emissive=True)
-    m.visual('box', (-0.42, 0.9, 0.6), (0.15, 0.5, 1.1), (0.9, 0.3, 0.1))        # expositor de doces
+    m.visual('box', (-0.42, 0.9, 0.6), (0.15, 0.5, 1.1), (0.9, 0.3, 0.1))  # expositor de doces
     m.collision('box', (-0.42, 0.9, 0.6), (0.15, 0.5, 1.1))
     for i in range(4):
         m.visual('box', (-0.42, 0.72 + i * 0.12, 0.35 + 0.22 * (i % 3)), (0.17, 0.1, 0.12),
@@ -460,7 +462,7 @@ def paredes():
     # faixas coloridas de seção, no alto das paredes (só visual)
     faixas = Model('faixas_secao', 0, 0)
     faixas.visual('box', (0, Y_MAX - 0.11, 3.0), (W, 0.02, 0.5), (0.15, 0.35, 0.65))     # frios
-    faixas.visual('box', (X_MAX - 0.11, 2.5, 3.0), (0.02, 13, 0.5), (0.3, 0.65, 0.2))    # hortifrúti
+    faixas.visual('box', (X_MAX - 0.11, 2.5, 3.0), (0.02, 13, 0.5), (0.3, 0.65, 0.2))  # hortifrúti
     faixas.visual('box', (X_MIN + 0.11, 2.0, 3.0), (0.02, 10, 0.5), (0.7, 0.4, 0.15))    # padaria
     out.append(faixas)
     return out

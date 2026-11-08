@@ -31,25 +31,25 @@ import signal
 import sys
 import time
 
-import numpy as np
-import rclpy
-import tf2_ros
 from action_msgs.msg import GoalStatus
 from frontiers import find_frontiers, goal_candidates, min_distance
 from geometry_msgs.msg import PoseStamped
 from nav2_msgs.action import NavigateToPose
 from nav_msgs.msg import OccupancyGrid
+import numpy as np
+import rclpy
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy
 from rclpy.signals import SignalHandlerOptions
+import tf2_ros
 
 MAP_QOS = QoSProfile(depth=1, reliability=QoSReliabilityPolicy.RELIABLE,
                      durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
 COSTMAP_QOS = QoSProfile(depth=1, reliability=QoSReliabilityPolicy.RELIABLE,
                          durability=QoSDurabilityPolicy.VOLATILE)
 COST_BLOCKED = 90          # costmap (0..100): >= isto o centro do robô não cabe
-EMPTY_ROUNDS_TO_FINISH = 3 # ciclos seguidos sem fronteira para dar por concluído
+EMPTY_ROUNDS_TO_FINISH = 3  # ciclos seguidos sem fronteira para dar por concluído
 
 
 def yaw_to_quaternion(yaw):

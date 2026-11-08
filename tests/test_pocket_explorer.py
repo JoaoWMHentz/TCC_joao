@@ -8,8 +8,8 @@ import pytest
 
 pytest.importorskip('rclpy')
 
+from action_msgs.msg import GoalStatus  # noqa: E402, I100
 import pocket_explorer as pe  # noqa: E402
-from action_msgs.msg import GoalStatus  # noqa: E402
 from pocket_explorer import PASS, WAIT_POSE  # noqa: E402
 from ros_fakes import FakeActionClient, make_map, make_scan, room, set_tf  # noqa: E402
 from wall_bfs_explorer import BFS_GOAL, DONE, RETURNING, WAIT, WALL  # noqa: E402

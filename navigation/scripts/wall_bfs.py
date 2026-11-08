@@ -22,12 +22,12 @@ grid[linha, coluna] com linha = y e coluna = x.
 
 from __future__ import annotations
 
-import math
 from collections import deque
 from dataclasses import dataclass
+import math
 
-import numpy as np
 from frontiers import FREE_MAX, frontier_mask
+import numpy as np
 from scipy import ndimage
 
 EIGHT = np.ones((3, 3), dtype=bool)
@@ -53,8 +53,11 @@ def traversable_mask(grid: np.ndarray, resolution: float, robot_radius: float) -
 
 
 def frontier_targets(grid: np.ndarray, min_cells: int = 1) -> np.ndarray:
-    """Máscara das células de fronteira cujo agrupamento (8-viz.) tem
-    pelo menos min_cells células — descarta buracos isolados de ruído."""
+    """Máscara das células de fronteira de agrupamentos grandes.
+
+    Mantém as células cujo agrupamento (8-viz.) tem pelo menos min_cells
+    células — descarta buracos isolados de ruído.
+    """
     mask = frontier_mask(grid)
     if min_cells <= 1 or not mask.any():
         return mask
@@ -118,9 +121,11 @@ def _path(parent: np.ndarray, w: int, r: int, c: int) -> list[tuple[int, int]]:
 
 
 def free_disk(grid: np.ndarray, center: tuple[int, int], radius_cells: int) -> np.ndarray:
-    """Células livres num disco em volta de center. Somado à máscara de
-    passagem, deixa a BFS sair mesmo se o robô estiver colado na parede
-    (dentro da inflação)."""
+    """Células livres num disco em volta de center.
+
+    Somado à máscara de passagem, deixa a BFS sair mesmo se o robô estiver
+    colado na parede (dentro da inflação).
+    """
     h, w = grid.shape
     rows, cols = np.ogrid[:h, :w]
     disk = (rows - center[0]) ** 2 + (cols - center[1]) ** 2 <= radius_cells ** 2
@@ -133,21 +138,24 @@ def free_disk(grid: np.ndarray, center: tuple[int, int], radius_cells: int) -> n
 class WallParams:
     side: str = 'right'           # lado em que a parede é mantida
     wall_distance: float = 0.70   # m — distância desejada (medida do LiDAR)
-    front_clearance: float = 0.75 # m — obstáculo à frente: gira no lugar
+    front_clearance: float = 0.75  # m — obstáculo à frente: gira no lugar
     wall_lost: float = 1.40       # m — além disso, não há parede do lado
     linear_speed: float = 0.8     # m/s — em linha reta
     min_linear_speed: float = 0.12  # m/s — abaixo disso o BLDC trepida
     max_angular_speed: float = 0.8  # rad/s
     kp: float = 1.5               # ganho do erro de distância
     ka: float = 1.0               # ganho do erro de ângulo com a parede
-    corner_turn_rate: float = 0.6 # rad/s — curva para contornar a quina
+    corner_turn_rate: float = 0.6  # rad/s — curva para contornar a quina
     slow_zone: float = 1.0        # m — além de front_clearance, desacelera até o mínimo
 
 
 @dataclass
 class ScanView:
-    """Distâncias mínimas por setor, já no referencial do robô (graus,
-    0 = frente, + = esquerda)."""
+    """Distâncias mínimas por setor, já no referencial do robô.
+
+    Graus: 0 = frente, + = esquerda.
+    """
+
     front: float
     side: float          # perpendicular, do lado da parede
     side_front: float    # diagonal (45°) à frente, do lado da parede
@@ -164,8 +172,11 @@ def sector_min(ranges: np.ndarray, angles: np.ndarray, center_deg: float,
 
 def scan_view(ranges, angle_min: float, angle_increment: float, range_max: float,
               side: str, yaw_offset: float = 0.0) -> ScanView:
-    """Resume o scan em setores. yaw_offset = yaw do frame do LiDAR em
-    relação ao base_link (o RPLidar real é montado girado 180°)."""
+    """Resume o scan em setores.
+
+    yaw_offset = yaw do frame do LiDAR em relação ao base_link (o RPLidar real
+    é montado girado 180°).
+    """
     r = np.asarray(ranges, dtype=np.float64)
     r = np.where(np.isfinite(r), r, range_max)      # sem retorno = livre
     angles = angle_min + np.arange(r.size) * angle_increment + yaw_offset
@@ -214,8 +225,10 @@ def wall_follow_command(view: ScanView, p: WallParams,
 
 
 def _front_factor(view: ScanView, p: WallParams) -> float:
-    """Fração da velocidade permitida pelo obstáculo à frente: 1 longe,
-    cai linearmente na slow_zone até o mínimo em front_clearance."""
+    """Fração da velocidade permitida pelo obstáculo à frente.
+
+    1 longe, cai linearmente na slow_zone até o mínimo em front_clearance.
+    """
     k = (view.front - p.front_clearance) / max(p.slow_zone, 1e-3)
     return max(p.min_linear_speed / p.linear_speed, min(1.0, k))
 
@@ -223,8 +236,10 @@ def _front_factor(view: ScanView, p: WallParams) -> float:
 # ── Caminho percorrido (memória dos lugares já visitados) ────────────────────
 
 class PathMemory:
-    """Caminho percorrido pelo robô: um ponto a cada `spacing` m, com a
-    orientação e a distância acumulada pelo caminho.
+    """Caminho percorrido pelo robô.
+
+    Um ponto a cada `spacing` m, com a orientação e a distância acumulada pelo
+    caminho.
 
     Serve para o seguidor de parede perceber que está passando de novo por
     onde já passou (`revisit`) — e largar a parede em vez de dar a mesma
@@ -271,9 +286,11 @@ class PathMemory:
 
     def revisit(self, x: float, y: float, yaw: float, radius: float, min_gap: float,
                 max_heading: float = math.radians(60)) -> int | None:
-        """Índice do ponto mais antigo já percorrido a menos de `radius` m de
-        (x, y), no mesmo sentido (orientação a menos de `max_heading` rad), e
-        que ficou pelo menos `min_gap` m de caminho para trás — ou None.
+        """Índice do ponto mais antigo já percorrido perto de (x, y), ou None.
+
+        O ponto precisa estar a menos de `radius` m de (x, y), no mesmo sentido
+        (orientação a menos de `max_heading` rad), e ter ficado pelo menos
+        `min_gap` m de caminho para trás.
 
         O sentido conta porque, seguindo a parede, passar de novo pelo mesmo
         lugar no mesmo sentido é repetir a volta; no sentido contrário é o

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
+import ExploreLog from './components/ExploreLog';
 import GoalCard from './components/GoalCard';
 import HistoryPanel from './components/HistoryPanel';
 import MapView, { type MapTool } from './components/MapView';
@@ -140,6 +141,7 @@ export default function App() {
           {tab === 'operar' && (
             <>
               <SessionPanel status={status} notify={notify} />
+              {mode === 'mapping' && <ExploreLog running={status?.explore?.running ?? false} />}
               <Teleop enabled={active} />
             </>
           )}

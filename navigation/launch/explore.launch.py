@@ -52,7 +52,8 @@ def generate_launch_description():
         DeclareLaunchArgument('strategy', default_value='wall_bfs',
                               choices=['wall_bfs', 'pocket', 'frontier'],
                               description='wall_bfs: seguir parede + BFS; pocket: desbaste '
-                                          '(contorno + passes em offset); frontier: fronteiras via Nav2'),
+                                          '(contorno + passes em offset); '
+                                          'frontier: fronteiras via Nav2'),
         explorer('wall_bfs', 'wall_bfs_explorer.py'),
         explorer('pocket', 'pocket_explorer.py'),
         explorer('frontier', 'frontier_explorer.py'),

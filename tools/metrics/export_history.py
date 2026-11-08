@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-export_history.py — exporta o histórico de navegação (PostgreSQL) para CSV e
-imprime os indicadores usados na avaliação:
+export_history.py — exporta o histórico de navegação (PostgreSQL) para CSV.
+
+Também imprime os indicadores usados na avaliação:
 
   - taxa de navegações concluídas (meta do TCC: > 90%)
   - recuperações do Nav2 (replanejamentos/manobras de desvio)
@@ -24,8 +25,10 @@ COLLISION_CLEARANCE_M = 0.02
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--db', default=os.environ.get('DATABASE_URL', 'postgresql://tcc:tcc@localhost:5433/tcc'))
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('--db', default=os.environ.get('DATABASE_URL',
+                                                   'postgresql://tcc:tcc@localhost:5433/tcc'))
     ap.add_argument('--map', help='filtra por mapa')
     ap.add_argument('--since', help='data inicial (AAAA-MM-DD)')
     ap.add_argument('--csv', help='arquivo de saída')

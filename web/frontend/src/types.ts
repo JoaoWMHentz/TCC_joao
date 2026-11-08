@@ -108,3 +108,9 @@ export interface HistorySummary {
 export type XY = [number, number];
 
 export type ExploreStrategy = 'wall_bfs' | 'pocket' | 'frontier';
+
+export interface ExploreLogEntry {
+  t: number; // instante (s desde a época, relógio do robô)
+  level: 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+  text: string;
+}

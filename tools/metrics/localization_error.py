@@ -20,11 +20,11 @@ import csv
 import math
 import time
 
-import rclpy
-import tf2_ros
 from nav_msgs.msg import Odometry
+import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+import tf2_ros
 
 
 def yaw_of(q) -> float:
@@ -53,7 +53,8 @@ class Sampler(Node):
         p = msg.pose.pose.position
         dx, dy = p.x - self.ox, p.y - self.oy
         c, s = math.cos(-self.oyaw), math.sin(-self.oyaw)
-        self.truth = (c * dx - s * dy, s * dx + c * dy, yaw_of(msg.pose.pose.orientation) - self.oyaw)
+        self.truth = (c * dx - s * dy, s * dx + c * dy,
+                      yaw_of(msg.pose.pose.orientation) - self.oyaw)
 
     def sample(self):
         if self.truth is None:
@@ -80,7 +81,8 @@ def stats(values):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--duration', type=float, default=60.0, help='segundos de amostragem')
     ap.add_argument('--period', type=float, default=0.5, help='intervalo entre amostras (s)')
     ap.add_argument('--origin', type=float, nargs=3, default=(-4.0, -0.8, 0.0),

@@ -9,17 +9,17 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'navigation', 'scripts'))
 
 from wall_bfs import (  # noqa: E402
-    PathMemory, ScanView, WallParams, bfs_to_frontier, free_disk, frontier_targets, scan_view,
-    traversable_mask, wall_follow_command)
+    bfs_to_frontier, free_disk, frontier_targets, PathMemory, scan_view, ScanView,
+    traversable_mask, wall_follow_command, WallParams)
 
-U, F, O = -1, 0, 100   # desconhecido, livre, ocupado
+U, F, OCC = -1, 0, 100   # desconhecido, livre, ocupado
 
 
 # ── BFS ──────────────────────────────────────────────────────────────────────
 
 def _sala():
     grid = np.full((20, 20), F)
-    grid[0, :] = grid[-1, :] = grid[:, 0] = grid[:, -1] = O
+    grid[0, :] = grid[-1, :] = grid[:, 0] = grid[:, -1] = OCC
     return grid
 
 
@@ -46,9 +46,9 @@ def test_bfs_prefere_a_mais_perto_pelo_caminho_e_nao_em_linha_reta():
     # Robô em (10, 8). Fronteira A logo atrás de uma parede (perto em linha
     # reta, mas o caminho dá a volta); fronteira B mais longe e em linha livre.
     grid = np.full((21, 30), F)
-    grid[0, :] = grid[-1, :] = grid[:, 0] = grid[:, -1] = O
-    grid[1:19, 10] = O                   # duas paredes verticais, abertas só em cima
-    grid[1:19, 12] = O                   # (linha 19); A fica no corredor entre elas
+    grid[0, :] = grid[-1, :] = grid[:, 0] = grid[:, -1] = OCC
+    grid[1:19, 10] = OCC                   # duas paredes verticais, abertas só em cima
+    grid[1:19, 12] = OCC                   # (linha 19); A fica no corredor entre elas
     grid[10, 11] = U                     # fronteira A: célula (10, 11) desconhecida
     grid[10, 1] = U                      # fronteira B: borda oeste, a 7 células livres
     passable = traversable_mask(grid, 0.1, 0.0)
@@ -59,7 +59,7 @@ def test_bfs_prefere_a_mais_perto_pelo_caminho_e_nao_em_linha_reta():
 
 def test_bfs_respeita_folga_do_robo():
     grid = _sala()
-    grid[1:19, 10] = O
+    grid[1:19, 10] = OCC
     grid[9, 10] = F                      # porta de uma célula: o robô não cabe
     grid[1:19, 15:19] = U                # desconhecido do outro lado
     passable = traversable_mask(grid, 0.1, 0.15)
@@ -151,6 +151,7 @@ def test_scan_view_aplica_o_yaw_do_lidar():
 
 def test_desacelera_com_obstaculo_se_aproximando_a_frente():
     d = P.wall_distance
+
     def v_at(front):
         return wall_follow_command(ScanView(front=front, side=d, side_front=d * math.sqrt(2),
                                             other_side=5.0), P, True)[0]

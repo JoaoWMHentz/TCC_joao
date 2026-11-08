@@ -20,34 +20,33 @@ erro final em relação ao destino.
 from __future__ import annotations
 
 import base64
+from dataclasses import dataclass, field
 import hashlib
 import io
 import logging
 import math
 import threading
 import time
-from dataclasses import dataclass, field
 from typing import Callable
 
-import numpy as np
-import rclpy
-import rclpy.signals
-import tf2_ros
 from action_msgs.msg import GoalStatus
+import config
+import db
 from diagnostic_msgs.msg import DiagnosticArray
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist
 from nav2_msgs.action import NavigateToPose
 from nav_msgs.msg import OccupancyGrid, Path
+import numpy as np
 from PIL import Image
+import rclpy
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.parameter import Parameter
-from rclpy.qos import (QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy,
-                       qos_profile_sensor_data)
+from rclpy.qos import (qos_profile_sensor_data, QoSDurabilityPolicy, QoSProfile,
+                       QoSReliabilityPolicy)
+import rclpy.signals
 from sensor_msgs.msg import LaserScan
-
-import config
-import db
+import tf2_ros
 
 log = logging.getLogger('ros_bridge')
 
@@ -68,7 +67,7 @@ def yaw_from_quaternion(q) -> float:
 
 
 def occupancy_to_png_b64(msg: OccupancyGrid) -> str:
-    """OccupancyGrid -> PNG em tons de cinza (livre branco, ocupado preto)."""
+    """Gera um PNG em tons de cinza do OccupancyGrid (livre branco, ocupado preto)."""
     data = np.asarray(msg.data, dtype=np.int16).reshape(msg.info.height, msg.info.width)
     img = np.full(data.shape, 205, dtype=np.uint8)          # desconhecido
     known = data >= 0
@@ -81,6 +80,7 @@ def occupancy_to_png_b64(msg: OccupancyGrid) -> str:
 @dataclass
 class Mission:
     """Uma navegação em andamento (destino único ou rota)."""
+
     kind: str
     label: str
     targets: list[dict]
@@ -117,7 +117,8 @@ class RosBridge(Node):
         self.map_name: str | None = None   # mapa da sessão ativa (definido pelo app)
 
         self._nav = ActionClient(self, NavigateToPose, 'navigate_to_pose')
-        self._initial_pose_pub = self.create_publisher(PoseWithCovarianceStamped, 'initialpose', 10)
+        self._initial_pose_pub = self.create_publisher(PoseWithCovarianceStamped,
+                                                       'initialpose', 10)
         self._cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
 
         self.create_subscription(OccupancyGrid, 'map', self._on_map, MAP_QOS)
@@ -188,7 +189,8 @@ class RosBridge(Node):
         self._plan_t = now
         step = max(1, len(msg.poses) // OVERLAY_MAX_POINTS)
         self._emit('path_update', {'points': [
-            [round(p.pose.position.x, 2), round(p.pose.position.y, 2)] for p in msg.poses[::step]]})
+            [round(p.pose.position.x, 2), round(p.pose.position.y, 2)]
+            for p in msg.poses[::step]]})
 
     def _on_scan(self, msg: LaserScan):
         ranges = np.asarray(msg.ranges, dtype=np.float64)

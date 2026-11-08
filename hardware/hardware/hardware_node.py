@@ -23,20 +23,18 @@ import math
 import threading
 import time
 
-import rclpy
-from rclpy.node import Node
-
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from geometry_msgs.msg import Quaternion, TransformStamped, Twist
+from hardware.protocol import (
+    apply_wheel_floor, clamp, euler_to_quaternion, format_velocity_command,
+    integrate_pose, parse_imu_frame, parse_motor_frame, STOP_COMMAND,
+    twist_to_wheels, WheelMapping, wheels_to_twist)
+from hardware.serial_link import SerialLink
 from nav_msgs.msg import Odometry
+import rclpy
+from rclpy.node import Node
 from sensor_msgs.msg import Imu, JointState
 from tf2_ros import TransformBroadcaster
-
-from hardware.protocol import (
-    STOP_COMMAND, WheelMapping, apply_wheel_floor, clamp, euler_to_quaternion,
-    format_velocity_command, integrate_pose, parse_imu_frame, parse_motor_frame,
-    twist_to_wheels, wheels_to_twist)
-from hardware.serial_link import SerialLink
 
 
 def _quaternion(roll: float, pitch: float, yaw: float) -> Quaternion:
@@ -179,7 +177,9 @@ class HardwareNode(Node):
         else:
             msg.orientation_covariance[0] = -1.0  # REP-145: orientação ausente
         msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z = f.gx, f.gy, f.gz
-        msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z = f.ax, f.ay, f.az
+        msg.linear_acceleration.x = f.ax
+        msg.linear_acceleration.y = f.ay
+        msg.linear_acceleration.z = f.az
         msg.angular_velocity_covariance = [0.001, 0.0, 0.0, 0.0, 0.001, 0.0, 0.0, 0.0, 0.001]
         msg.linear_acceleration_covariance = [0.04, 0.0, 0.0, 0.0, 0.04, 0.0, 0.0, 0.0, 0.04]
         self._imu_pub.publish(msg)

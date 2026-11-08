@@ -26,11 +26,11 @@ export default function Teleop({ enabled }: { enabled: boolean }) {
 
   useEffect(() => stop, []);
 
-  const pad: { label: string; dir: Dir; area: string }[] = [
-    { label: '▲', dir: [1, 0], area: 'up' },
-    { label: '◀', dir: [0, 1], area: 'left' },
-    { label: '▶', dir: [0, -1], area: 'right' },
-    { label: '▼', dir: [-1, 0], area: 'down' },
+  const pad: { label: string; name: string; dir: Dir; area: string }[] = [
+    { label: '▲', dir: [1, 0], area: 'up', name: 'Frente' },
+    { label: '◀', dir: [0, 1], area: 'left', name: 'Girar à esquerda' },
+    { label: '▶', dir: [0, -1], area: 'right', name: 'Girar à direita' },
+    { label: '▼', dir: [-1, 0], area: 'down', name: 'Ré' },
   ];
 
   return (
@@ -41,6 +41,8 @@ export default function Teleop({ enabled }: { enabled: boolean }) {
           <button
             key={b.area}
             className={`teleop-${b.area}`}
+            aria-label={b.name}
+            title={b.name}
             disabled={!enabled}
             onPointerDown={() => start(b.dir)}
             onPointerUp={stop}

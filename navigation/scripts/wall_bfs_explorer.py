@@ -31,21 +31,21 @@ import signal
 import sys
 import time
 
-import numpy as np
-import rclpy
-import tf2_ros
 from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import PoseStamped, Twist
 from nav2_msgs.action import NavigateToPose
 from nav_msgs.msg import OccupancyGrid
+import numpy as np
+import rclpy
 from rclpy.action import ActionClient
 from rclpy.node import Node
-from rclpy.qos import (QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy,
-                       qos_profile_sensor_data)
+from rclpy.qos import (qos_profile_sensor_data, QoSDurabilityPolicy, QoSProfile,
+                       QoSReliabilityPolicy)
 from rclpy.signals import SignalHandlerOptions
 from sensor_msgs.msg import LaserScan
-from wall_bfs import (PathMemory, WallParams, bfs_to_frontier, free_disk, frontier_targets,
-                      scan_view, traversable_mask, wall_follow_command)
+import tf2_ros
+from wall_bfs import (bfs_to_frontier, free_disk, frontier_targets, PathMemory, scan_view,
+                      traversable_mask, wall_follow_command, WallParams)
 
 MAP_QOS = QoSProfile(depth=1, reliability=QoSReliabilityPolicy.RELIABLE,
                      durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
@@ -240,10 +240,13 @@ class WallBfsExplorer(Node):
         self.cmd_pub.publish(cmd)
 
     def _revisiting(self, pose):
-        """Motivo se o robô está há `revisit_travel` m andando, no mesmo
-        sentido, sobre caminho já percorrido (deste trecho, a mais de
-        `loop_min_travel` m para trás, ou de qualquer trecho anterior) — ou None.
-        Guarda em loop_hit o índice do primeiro ponto revisitado."""
+        """Motivo se o robô está repetindo caminho já percorrido, ou None.
+
+        Repetir = estar há `revisit_travel` m andando, no mesmo sentido, sobre
+        caminho já percorrido (deste trecho, a mais de `loop_min_travel` m para
+        trás, ou de qualquer trecho anterior). Guarda em loop_hit o índice do
+        primeiro ponto revisitado.
+        """
         hit = self.path.revisit(*pose, self.loop_close_radius, self.loop_min_travel,
                                 self.revisit_heading)
         if hit is None:
@@ -289,7 +292,8 @@ class WallBfsExplorer(Node):
             if self.empty_rounds >= self.empty_rounds_to_finish:
                 self._finish()
             else:
-                self.get_logger().info('Nenhuma fronteira alcançável; seguindo a parede mais um pouco')
+                self.get_logger().info(
+                    'Nenhuma fronteira alcançável; seguindo a parede mais um pouco')
                 self._start_wall(pose, time.monotonic())
             return
         self.empty_rounds = 0
@@ -421,7 +425,8 @@ class WallBfsExplorer(Node):
     def _finish(self):
         mins = (time.monotonic() - self.started_at) / 60
         self.get_logger().info(f'Exploração concluída: nenhuma fronteira alcançável '
-                               f'({self.goals_reached} fronteira(s) visitada(s) em {mins:.1f} min).')
+                               f'({self.goals_reached} fronteira(s) visitada(s) '
+                               f'em {mins:.1f} min).')
         if self.return_to_start and self.start_pose is not None:
             x, y, yaw = self.start_pose
             self.state = RETURNING

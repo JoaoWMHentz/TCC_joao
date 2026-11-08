@@ -33,7 +33,7 @@ software de navegação há mais de um ano (ver [J11](#j11-histórico-de-commits
 
 Os requisitos do Playbook foram escritos para cobrir todas as linhas de
 projeto, a maioria delas centrada em aplicações hospedadas em nuvem. Vários
-deles (deploy em nuvem, pipeline em serviço externo, autenticação de usuários)
+deles (deploy em nuvem, entrega contínua até o dispositivo, autenticação de usuários)
 pressupõem esse tipo de produto e não se aplicam bem a um robô que opera
 fisicamente num ambiente. As adaptações abaixo priorizam o objetivo da
 pesquisa: **controle, segurança física e autonomia de navegação**.
@@ -59,8 +59,8 @@ pesquisa: **controle, segurança física e autonomia de navegação**.
 | Requisito | Status | Evidência / justificativa |
 |---|---|---|
 | Documentação em Wiki | ✅ | Wiki do GitHub, publicada a partir de `docs/`: funcionamento de cada componente, integração, diagramas e registro de decisões ([decisoes-arquitetura.md](decisoes-arquitetura.md)) |
-| Pipeline de CI/CD | 🟡 | dispensado pelos professores: pipeline privado da empresa, robôs com sistema operacional próprio — [J3](#j3-integração-e-entrega-contínuas) |
-| Análise estática de código e segurança | 🟡 | dispensado com o CI/CD — [J4](#j4-análise-estática) |
+| Pipeline de CI/CD | 🟡 | CI no GitHub Actions (estilo, testes com cobertura mínima, build da interface, publicação da Wiki); entrega no robô dispensada pelos professores — [J3](#j3-integração-e-entrega-contínuas) |
+| Análise estática de código e segurança | ✅ | `ament_flake8` e `tsc` no CI, sem pendências — [J4](#j4-análise-estática) |
 | Monitoramento / observabilidade | 🟡 | [J5](#j5-observabilidade) |
 
 ### 1.3 Desejáveis da linha IoT
@@ -91,6 +91,59 @@ pesquisa: **controle, segurança física e autonomia de navegação**.
 | Escopo simplista | não se aplica — SLAM, planejamento, controle e exploração autônoma |
 | Escopo de projeto pronto | não se aplica — [J8](#j8-ros-2-rtab-map-e-nav2-não-são-plataforma-iot-pronta) |
 | Apenas embarcado | não se aplica — há camada de aplicação web e banco de dados |
+
+### 1.6 Guia do Portfólio: estrutura, documentação, DevEx e Definição de Pronto
+
+Itens do texto-guia da disciplina (o "guia/bússola" que complementa o
+manifesto).
+
+**Estrutura do repositório**
+
+| Item | Status | Evidência / justificativa |
+|---|---|---|
+| `README.md` | ✅ | propósito, arquitetura, instalação, uso (interface e linha de comando), avaliação, testes |
+| `CONTRIBUTING.md` | ✅ | [CONTRIBUTING.md](../CONTRIBUTING.md): ambiente, guia de estilo, testes, issues com etiquetas, pull requests |
+| `LICENSE` | ✅ | Apache-2.0 |
+| `CODE_OF_CONDUCT.md` | ✅ | [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md), adaptado do Contributor Covenant 2.1 |
+
+**Documentação**
+
+| Item | Status | Evidência / justificativa |
+|---|---|---|
+| Arquitetura (C4 recomendado) | ✅ | C4 de contexto, contêineres e componentes em [diagramas.md](diagramas.md); camadas em [arquitetura.md](arquitetura.md) |
+| Wiki com registro de decisões e guias | ✅ | Wiki gerada de `docs/` ([publish_wiki.sh](../scripts/publish_wiki.sh)); [ADRs](decisoes-arquitetura.md); guias de cada componente |
+| Documentação de API (Pydoc, Swagger etc.) | ✅ | [api.md](api.md): REST, eventos Socket.IO e equivalentes ROS 2; docstrings em todos os módulos Python (padrão PEP 257, verificado pelo linter) |
+| UX: designs de interface e jornada do usuário | ✅ | [ux.md](ux.md): perfis, jornadas, fluxo de telas, layout, decisões de interação. Capturas de tela: [informar após capturar, em `docs/img/`] |
+
+**Desenvolvimento e experiência do desenvolvedor**
+
+| Item | Status | Evidência / justificativa |
+|---|---|---|
+| Guia de estilo com verificação automática | ✅ | guia de estilo do ROS 2 (PEP 8, 99 colunas, PEP 257), verificado pelo `ament_flake8`, o equivalente do Checkstyle no ecossistema ROS 2, e `tsc` na interface: `scripts/lint.sh` |
+| Testes automatizados | ✅ | `pytest`, 189 testes, ver [J9](#j9-cobertura-de-testes-e-tdd) |
+| Contêineres e mocks | ✅ | PostgreSQL em Docker; simulação Gazebo como ambiente completo; `tools/fake_firmware.py` emula os microcontroladores; dublês de Nav2/TF/serial nos testes |
+| CI/CD | 🟡 | CI no GitHub Actions; entrega no robô privada — [J3](#j3-integração-e-entrega-contínuas) |
+| Issues e pull requests com etiquetas e processo documentado | ✅ | modelos em `.github/ISSUE_TEMPLATE` e `.github/PULL_REQUEST_TEMPLATE.md`; etiquetas e fluxo em [CONTRIBUTING.md](../CONTRIBUTING.md). Revisão por pares: [J12](#j12-revisão-por-pares) |
+| Análise estática | ✅ | `ament_flake8` e `tsc` no CI — [J4](#j4-análise-estática) |
+
+**Sustentabilidade e evolução**
+
+| Item | Status | Evidência / justificativa |
+|---|---|---|
+| Monitoramento e log | 🟡 | [J5](#j5-observabilidade) |
+| Feedback e melhoria contínua | ✅ | modelos de issue para defeito e melhoria, com campo de como medir o resultado; métricas de navegação para avaliar cada mudança |
+| Acessibilidade | 🟡 | [ux.md §5](ux.md#5-acessibilidade) e WCAG em [Normas](#3-normas-aplicáveis) |
+
+**Definição de Pronto**
+
+| Critério | Status | Evidência / justificativa |
+|---|---|---|
+| Software funcional em ambiente produtivo | 🟡 | roda no robô físico, que é o ambiente de produção ([J2](#j2-disponibilidade-do-produto), [J6](#j6-ambientes-de-desenvolvimento-homologação-e-produção)) |
+| CI/CD | 🟡 | CI implementado (testes e Wiki automáticos); entrega no robô dispensada pelos professores — [J3](#j3-integração-e-entrega-contínuas) |
+| Monitoramento | 🟡 | [J5](#j5-observabilidade) |
+| Cobertura de testes unitários ≥ 75% | ✅ | 98% (mínimo de 80% verificado por `tests/run_tests.sh`) |
+| Sem problemas significativos em análise estática | ✅ | `scripts/lint.sh` sem pendências (`ament_flake8` + `tsc`), verificado no CI |
+| Documentação atualizada: modelagem, decisões, guia de contribuição, URLs, prints | 🟡 | modelagem ([diagramas.md](diagramas.md)), decisões ([ADRs](decisoes-arquitetura.md)), contribuição ([CONTRIBUTING.md](../CONTRIBUTING.md)), URLs ([api.md](api.md), README). Faltam as capturas de tela em [ux.md](ux.md#capturas-de-tela) |
 
 ---
 
@@ -140,34 +193,52 @@ físico e reprodução completa em simulação com um comando
 
 **Requisito:** pipeline de CI/CD (ex.: GitHub Actions).
 
-**Situação:** requisito **dispensado pelos professores** [informar quem e
-quando: ex.: orientador e professor da disciplina, na orientação de DD/MM/2026].
+**Situação:** **CI implementado** no repositório público (GitHub Actions); a
+**entrega no robô** foi dispensada pelos professores [informar quem e quando:
+ex.: orientador e professor da disciplina, na orientação de DD/MM/2026] e
+continua no pipeline privado da empresa.
 
-**Justificativa.** O sistema roda em robôs que usam um **sistema operacional
-modificado**, uma imagem própria em que ROS 2, drivers, dependências e o
-processo de build e atualização já vêm configurados. A integração e a entrega
-contínuas desses robôs existem, mas são **privadas e pertencem à empresa**
-(ver [J11](#j11-histórico-de-commits-e-autoria)). Por isso não podem ser
-publicadas neste repositório, que é um *fork* público do projeto.
+**Integração contínua** — [.github/workflows/ci.yml](../.github/workflows/ci.yml),
+a cada push e pull request:
 
-Há também motivos técnicos para não replicar o pipeline num serviço público:
+| Job | O que faz |
+|---|---|
+| Estilo e testes (ROS 2 Jazzy) | contêiner `ros:jazzy-ros-base`; roda `scripts/lint.sh` (`ament_flake8`) e `tests/run_tests.sh` (189 testes, **falha abaixo de 80%** de cobertura); publica o `coverage.xml` e o resumo da cobertura na execução |
+| Interface | `npm ci` e `npm run build` (verificação de tipos e build de produção) |
+| Publicar a Wiki | só na `main` e com os anteriores verdes: regera a Wiki a partir de `docs/` (`scripts/publish_wiki.sh`) |
 
-- o sistema depende de ROS 2, Gazebo com aceleração gráfica e do hardware do
-  robô (microcontroladores, LiDAR, câmera), que não existem em executores de CI
-  na nuvem;
+O workflow chama **os mesmos scripts usados localmente**: o que passa na máquina
+do desenvolvedor passa no CI, sem configuração duplicada. Os testes não
+precisam de Gazebo nem do robô, porque usam dublês de Nav2, TF e porta serial
+([tests/ros_fakes.py](../tests/ros_fakes.py)).
+
+**Entrega contínua.** A entrega automatizada do repositório público é a da
+**documentação** (Wiki). A entrega do software no robô não é automatizada aqui,
+por estes motivos:
+
+- os robôs usam um **sistema operacional modificado**, uma imagem própria em
+  que ROS 2, drivers, dependências e o processo de build e atualização já vêm
+  configurados; esse pipeline existe, mas é **privado e pertence à empresa**
+  (ver [J11](#j11-histórico-de-commits-e-autoria));
 - publicar automaticamente uma versão nova num robô que pode estar em
   movimento interromperia o driver dos motores e a navegação no meio de uma
   tarefa;
 - deploy por SSH/FTP, a alternativa para um dispositivo, é vedado pelo
   Directions.
 
-**O que o repositório público oferece** — a mesma sequência de etapas,
-automatizada por scripts versionados e executada na máquina de destino:
+**Ficaram de fora do CI, de propósito:**
+
+- **simulação Gazebo**: lenta (10 a 20 min), dependente de GPU e com
+  resultado não determinístico; os testes de integração com simulação são
+  feitos antes de cada ida ao robô ([J6](#j6-ambientes-de-desenvolvimento-homologação-e-produção));
+- **compilação dos firmwares**: os `.ino` dependem de bibliotecas e núcleos de
+  placa instalados no Arduino IDE ([J7](#j7-testes-de-firmware)).
+
+No destino, o restante da sequência é automatizado por scripts versionados:
 
 | Etapa | Automação |
 |---|---|
 | Provisionamento | `install.sh` instala ROS 2, RTAB-Map, Nav2, Gazebo, Docker, Node.js e o ambiente do backend, e compila o workspace |
-| Testes | `tests/run_tests.sh` roda a suíte com relatório de cobertura e **falha abaixo de 80%** |
 | Build e execução | `scripts/start_sim.sh` e `scripts/start_robot.sh` compilam o workspace e a interface, sobem o banco e a pilha |
 | Atualização no robô | o robô baixa a versão do repositório (`git pull`) e o `start_robot.sh` recompila, por ação do operador com o robô parado |
 
@@ -175,16 +246,20 @@ automatizada por scripts versionados e executada na máquina de destino:
 
 **Requisito:** análise estática de código e segurança (ex.: SonarCloud).
 
-**Situação:** dispensado junto com o pipeline de CI/CD
-([J3](#j3-integração-e-entrega-contínuas)).
+**Situação:** análise estática **automatizada no CI** com o linter oficial do
+ROS 2; o serviço externo (SonarCloud) não foi adotado.
 
-**Justificativa.** Ferramentas como o SonarCloud se integram ao pipeline de
-CI, que neste projeto é privado e pertence à empresa
-([J3](#j3-integração-e-entrega-contínuas)). No repositório público, a qualidade
-do código é assegurada por outros meios:
+**Justificativa.** A análise roda a cada push e pull request
+([J3](#j3-integração-e-entrega-contínuas)), com as ferramentas do próprio
+ecossistema:
 
+- **`scripts/lint.sh`** roda o `ament_flake8`, o linter oficial
+  do ROS 2 (PEP 8, ordem de imports, docstrings PEP 257, nomes que escondem
+  funções nativas, compreensões desnecessárias), em todo o código Python, e
+  termina **sem pendências**; o CI falha se surgir alguma;
 - verificação de tipos do frontend com o compilador TypeScript
-  (`npm run typecheck`), que é análise estática;
+  (`npm run typecheck`, também chamado pelo `scripts/lint.sh`), que é análise
+  estática;
 - anotações de tipo no Python e separação entre lógica pura e E/S
   (`protocol.py`, `frontiers.py`, `wall_bfs.py`, `pocket.py` não dependem de
   ROS nem de hardware), o que permite testar as regras isoladamente;
@@ -246,7 +321,8 @@ projeto.
 A meta de cobertura é obrigatória só na linha de Web Apps; em IoT, TDD é
 recomendado e não há meta. Mesmo assim, o código Python do robô (driver,
 protocolo, enlace serial e exploração) tem cobertura medida, com mínimo de 80%
-verificado automaticamente. Os testes exercitam regras de comportamento
+verificado automaticamente, acima dos 75% pedidos pela Definição de Pronto do
+guia da disciplina (medido: 98%). Os testes exercitam regras de comportamento
 (timeouts, lista negra de destinos, retorno ao ponto de partida, falhas do
 Nav2), não apenas o percentual.
 

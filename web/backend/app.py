@@ -19,16 +19,15 @@ import signal
 import threading
 import time
 
+import api
+import config
+import db
 from flask import Flask, request, send_from_directory
 from flask.json.provider import DefaultJSONProvider
 from flask_cors import CORS
 from flask_socketio import SocketIO
-
-import api
-import config
-import db
-import ros_bridge
 from launcher import Launcher
+import ros_bridge
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s', datefmt='%H:%M:%S')
@@ -38,6 +37,7 @@ log = logging.getLogger('app')
 
 class JSONProvider(DefaultJSONProvider):
     """Datas do PostgreSQL saem em ISO 8601."""
+
     @staticmethod
     def default(o):
         if hasattr(o, 'isoformat'):

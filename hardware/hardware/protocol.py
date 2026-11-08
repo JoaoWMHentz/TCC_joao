@@ -21,8 +21,8 @@ Protocolo com o microcontrolador da IMU (STM32F401 + BNO085), 50 Hz:
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
+import math
 
 
 # ── Mensagens ────────────────────────────────────────────────────────────────
@@ -98,6 +98,7 @@ class WheelMapping:
     sinal e/ou trocar esquerda/direita. Comando e realimentação têm ajustes
     independentes porque o firmware pode tratá-los de forma diferente.
     """
+
     invert_command: bool = False
     swap_command: bool = False
     invert_feedback: bool = False
@@ -164,7 +165,8 @@ def integrate_pose(x: float, y: float, yaw: float,
     return x, y, yaw
 
 
-def euler_to_quaternion(roll: float, pitch: float, yaw: float) -> tuple[float, float, float, float]:
+def euler_to_quaternion(
+        roll: float, pitch: float, yaw: float) -> tuple[float, float, float, float]:
     """Retorna (x, y, z, w)."""
     cy, sy = math.cos(yaw / 2), math.sin(yaw / 2)
     cp, sp = math.cos(pitch / 2), math.sin(pitch / 2)

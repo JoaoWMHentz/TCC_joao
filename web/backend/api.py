@@ -12,6 +12,7 @@ Sessão      GET  /api/status            estado geral
 Exploração  POST /api/explore/start     {strategy?} exploração automática (só no mapeamento)
                                         strategy: wall_bfs (padrão) | pocket | frontier
             POST /api/explore/stop
+            GET  /api/explore/log       decisões do explorador nesta sessão
 Mapa        GET  /api/map               PNG (base64) + metadados
 Controle    POST /api/goal              {x, y, theta}
             POST /api/cancel
@@ -26,12 +27,11 @@ from __future__ import annotations
 
 import math
 
-import psycopg2
-from flask import Blueprint, jsonify, request
-
 import db
-import ros_bridge
+from flask import Blueprint, jsonify, request
 from launcher import DEFAULT_STRATEGY, MAP_NAME_RE
+import psycopg2
+import ros_bridge
 
 api = Blueprint('api', __name__, url_prefix='/api')
 launcher = None  # injetado pelo app
@@ -163,13 +163,21 @@ def explore(action: str):
     return jsonify({'ok': True})
 
 
+@api.get('/explore/log')
+def explore_log():
+    return jsonify(launcher.explore_log())
+
+
 def _strategy(body: dict) -> str:
     return (body.get('strategy') or DEFAULT_STRATEGY).strip()
 
 
 def _take_control():
-    """Comando manual (destino, rota, teleoperação, cancelar) encerra a
-    exploração automática, para os dois não disputarem o Nav2."""
+    """Encerra a exploração automática diante de um comando manual.
+
+    Comando manual (destino, rota, teleoperação, cancelar) encerra a
+    exploração automática, para os dois não disputarem o Nav2.
+    """
     if launcher.running('explore'):
         launcher.stop_explore()
 

@@ -159,7 +159,6 @@ export default function SessionPanel({ status, notify }: Props) {
               <button className={`wide ${exploring ? '' : 'primary'}`} onClick={toggleExplore}>
                 {exploring ? 'Parar exploração autônoma' : 'Iniciar exploração autônoma'}
               </button>
-              {status?.explore?.message && <p className="hint">{status.explore.message}</p>}
               {!exploring && (
                 <p className="hint">
                   {strategyInfo.hint} Qualquer comando manual (destino, setas) interrompe a exploração.

@@ -67,7 +67,8 @@ def main():
         pos_motor_r += shaft_r * PERIOD_S
         pos_motor_l += shaft_l * PERIOD_S
         tele_l, tele_r = -shaft_l, shaft_r
-        os.write(motor, f'M {tele_l:.4f} {tele_r:.4f} {-pos_motor_l:.4f} {pos_motor_r:.4f} R\n'.encode())
+        os.write(motor, (f'M {tele_l:.4f} {tele_r:.4f} '
+                         f'{-pos_motor_l:.4f} {pos_motor_r:.4f} R\n').encode())
 
         # Giro "real" do robô, a partir das rodas na convenção do ROS
         # (o driver nega e troca o comando antes de enviar; aqui desfazemos).
