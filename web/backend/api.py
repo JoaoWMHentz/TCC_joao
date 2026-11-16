@@ -14,6 +14,7 @@ Exploração  POST /api/explore/start     {strategy?} exploração automática (
             POST /api/explore/stop
             GET  /api/explore/log       decisões do explorador nesta sessão
 Mapa        GET  /api/map               PNG (base64) + metadados
+Câmera      GET  /api/camera/stream     imagem atual em MJPEG (multipart/x-mixed-replace)
 Controle    POST /api/goal              {x, y, theta}
             POST /api/cancel
             POST /api/initial_pose      {x, y, theta}
@@ -28,7 +29,7 @@ from __future__ import annotations
 import math
 
 import db
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response, stream_with_context
 from launcher import DEFAULT_STRATEGY, MAP_NAME_RE
 import psycopg2
 import ros_bridge
@@ -190,6 +191,22 @@ def get_map():
     if data is None:
         raise ApiError('Mapa ainda não disponível', 404)
     return jsonify(data)
+
+
+# ── Câmera ───────────────────────────────────────────────────────────────────
+
+@api.get('/camera/stream')
+def camera_stream():
+    frames = _node().camera_frames()
+
+    def mjpeg():
+        for jpeg in frames:
+            yield (b'--frame\r\nContent-Type: image/jpeg\r\n'
+                   b'Content-Length: ' + str(len(jpeg)).encode() + b'\r\n\r\n' + jpeg + b'\r\n')
+
+    return Response(stream_with_context(mjpeg()),
+                    mimetype='multipart/x-mixed-replace; boundary=frame',
+                    headers={'Cache-Control': 'no-store'})
 
 
 # ── Controle ─────────────────────────────────────────────────────────────────

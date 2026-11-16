@@ -24,6 +24,9 @@ MAPS_DIR = pathlib.Path(os.path.expanduser(
 DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://tcc:tcc@localhost:5433/tcc')
 
 USE_CAMERA = os.environ.get('USE_CAMERA', 'true').lower() == 'true'
+CAMERA_TOPIC = os.environ.get('CAMERA_TOPIC', '/camera/color/image_raw')
+# A câmera é montada invertida (roll = pi no URDF): gira a imagem para exibir
+CAMERA_ROTATE_180 = os.environ.get('CAMERA_ROTATE_180', 'true').lower() == 'true'
 
 HOST = os.environ.get('WEB_HOST', '0.0.0.0')
 PORT = int(os.environ.get('WEB_PORT', '5000'))

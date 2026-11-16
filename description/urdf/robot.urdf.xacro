@@ -36,7 +36,7 @@
   <xacro:property name="imu_z" value="0.05" />
 
   <!-- Câmera montada invertida (roll = pi) e inclinada 35° para baixo -->
-  <xacro:property name="camera_x"     value="0.200" />
+  <xacro:property name="camera_x"     value="0.280" />  <!-- à frente do totem (raio 0.245 em z=camera_z) -->
   <xacro:property name="camera_y"     value="0.0" />
   <xacro:property name="camera_z"     value="0.150" />
   <xacro:property name="camera_roll"  value="${pi}" />

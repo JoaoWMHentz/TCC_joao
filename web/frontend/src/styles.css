@@ -148,3 +148,9 @@ input, select {
 .explore-log time { color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .explore-log .level-warn span { color: var(--warn); }
 .explore-log .level-error span, .explore-log .level-fatal span { color: var(--danger); }
+
+/* Câmera */
+.panel h2.panel-title { display: flex; align-items: center; justify-content: space-between; }
+.camera-view { position: relative; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden; background: #111; }
+.camera-view img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.camera-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #aaa; font-size: 13px; }

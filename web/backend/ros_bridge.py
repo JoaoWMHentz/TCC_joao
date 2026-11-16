@@ -8,6 +8,7 @@ comandos do operador:
   TF map -> base_link           -> pose do robô
   /plan, /scan                  -> camadas do mapa (caminho planejado, laser)
   /diagnostics                  -> saúde do hardware
+  /camera/color/image_raw       -> quadros JPEG (stream MJPEG, só com espectadores)
   NavigateToPose (action)       <- ir até um destino; rotas = sequência deles
   /initialpose                  <- corrigir a localização manualmente
   /cmd_vel                      <- teleoperação
@@ -45,7 +46,7 @@ from rclpy.parameter import Parameter
 from rclpy.qos import (qos_profile_sensor_data, QoSDurabilityPolicy, QoSProfile,
                        QoSReliabilityPolicy)
 import rclpy.signals
-from sensor_msgs.msg import LaserScan
+from sensor_msgs.msg import Image as ImageMsg, LaserScan
 import tf2_ros
 
 log = logging.getLogger('ros_bridge')
@@ -55,6 +56,9 @@ MAP_QOS = QoSProfile(depth=1, reliability=QoSReliabilityPolicy.RELIABLE,
 BODY_RADIUS_M = 0.245         # raio do corpo (LiDAR no centro do corpo)
 OVERLAY_PERIOD_S = 0.5        # caminho e laser: 2 Hz bastam para a interface
 OVERLAY_MAX_POINTS = 360
+CAMERA_PERIOD_S = 0.1         # até 10 quadros/s no stream
+CAMERA_MAX_WIDTH = 640        # quadros maiores são reduzidos antes do JPEG
+CAMERA_JPEG_QUALITY = 70
 RESULT_NAMES = {
     GoalStatus.STATUS_SUCCEEDED: 'succeeded',
     GoalStatus.STATUS_ABORTED: 'aborted',
@@ -64,6 +68,29 @@ RESULT_NAMES = {
 
 def yaw_from_quaternion(q) -> float:
     return math.atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z))
+
+
+def image_to_jpeg(msg: ImageMsg, rotate_180: bool) -> bytes | None:
+    """sensor_msgs/Image (rgb8, bgr8, rgba8, bgra8, mono8) -> JPEG; None se a codificação não é suportada."""
+    channels = {'rgb8': 3, 'bgr8': 3, 'rgba8': 4, 'bgra8': 4, 'mono8': 1}.get(msg.encoding)
+    if channels is None:
+        return None
+    rows = np.frombuffer(msg.data, dtype=np.uint8).reshape(msg.height, msg.step)
+    img = rows[:, :msg.width * channels].reshape(msg.height, msg.width, channels)
+    if msg.encoding.startswith('bgr'):
+        img = img[..., [2, 1, 0]]
+    elif msg.encoding == 'rgba8':
+        img = img[..., :3]
+    elif channels == 1:
+        img = img[..., 0]
+    pil = Image.fromarray(np.ascontiguousarray(img))
+    if rotate_180:
+        pil = pil.rotate(180)
+    if pil.width > CAMERA_MAX_WIDTH:
+        pil = pil.resize((CAMERA_MAX_WIDTH, round(pil.height * CAMERA_MAX_WIDTH / pil.width)))
+    buf = io.BytesIO()
+    pil.save(buf, format='JPEG', quality=CAMERA_JPEG_QUALITY)
+    return buf.getvalue()
 
 
 def occupancy_to_png_b64(msg: OccupancyGrid) -> str:
@@ -116,6 +143,14 @@ class RosBridge(Node):
         self._mission: Mission | None = None
         self.map_name: str | None = None   # mapa da sessão ativa (definido pelo app)
 
+        # Câmera: último quadro JPEG; só convertemos enquanto há espectadores
+        self._camera_cond = threading.Condition()
+        self._camera_jpeg: bytes | None = None
+        self._camera_seq = 0
+        self._camera_t = 0.0
+        self._camera_viewers = 0
+        self._camera_warned: set[str] = set()
+
         self._nav = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self._initial_pose_pub = self.create_publisher(PoseWithCovarianceStamped,
                                                        'initialpose', 10)
@@ -125,6 +160,8 @@ class RosBridge(Node):
         self.create_subscription(Path, 'plan', self._on_plan, 10)
         self.create_subscription(LaserScan, 'scan', self._on_scan, qos_profile_sensor_data)
         self.create_subscription(DiagnosticArray, 'diagnostics', self._on_diagnostics, 10)
+        self.create_subscription(ImageMsg, config.CAMERA_TOPIC, self._on_image,
+                                 qos_profile_sensor_data)
 
         self.create_timer(0.2, self._pose_tick)
         self.create_timer(1.0, self._map_tick)
@@ -218,6 +255,46 @@ class RosBridge(Node):
         mx = t.x + (1 - 2 * (q.y ** 2 + q.z ** 2)) * px + 2 * (q.x * q.y - q.z * q.w) * py
         my = t.y + 2 * (q.x * q.y + q.z * q.w) * px + (1 - 2 * (q.x ** 2 + q.z ** 2)) * py
         self._emit('scan_update', {'points': np.round(np.stack([mx, my], axis=1), 2).tolist()})
+
+    # ── Câmera ───────────────────────────────────────────────────────────────
+
+    def _on_image(self, msg: ImageMsg):
+        now = time.monotonic()
+        if self._camera_viewers == 0 or now - self._camera_t < CAMERA_PERIOD_S:
+            return
+        self._camera_t = now
+        try:
+            jpeg = image_to_jpeg(msg, config.CAMERA_ROTATE_180)
+        except Exception:
+            log.exception('falha ao converter o quadro da câmera')
+            return
+        if jpeg is None:
+            if msg.encoding not in self._camera_warned:
+                self._camera_warned.add(msg.encoding)
+                log.warning('câmera: codificação %s não suportada no stream', msg.encoding)
+            return
+        with self._camera_cond:
+            self._camera_jpeg = jpeg
+            self._camera_seq += 1
+            self._camera_cond.notify_all()
+
+    def camera_frames(self):
+        """Gera os quadros JPEG novos enquanto o cliente estiver conectado."""
+        with self._camera_cond:
+            self._camera_viewers += 1
+        try:
+            seq = -1
+            while True:
+                with self._camera_cond:
+                    self._camera_cond.wait_for(lambda: self._camera_seq != seq, timeout=5.0)
+                    # Sem quadro novo em 5 s: reenvia o último, o que também revela
+                    # se o cliente já desconectou (a escrita falha e o gerador fecha)
+                    seq, jpeg = self._camera_seq, self._camera_jpeg
+                if jpeg is not None:
+                    yield jpeg
+        finally:
+            with self._camera_cond:
+                self._camera_viewers -= 1
 
     # ── Diagnóstico do hardware ──────────────────────────────────────────────
 

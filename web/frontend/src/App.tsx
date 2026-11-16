@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
+import CameraView from './components/CameraView';
 import ExploreLog from './components/ExploreLog';
 import GoalCard from './components/GoalCard';
 import HistoryPanel from './components/HistoryPanel';
@@ -141,6 +142,7 @@ export default function App() {
           {tab === 'operar' && (
             <>
               <SessionPanel status={status} notify={notify} />
+              {active && <CameraView />}
               {mode === 'mapping' && <ExploreLog running={status?.explore?.running ?? false} />}
               <Teleop enabled={active} />
             </>
